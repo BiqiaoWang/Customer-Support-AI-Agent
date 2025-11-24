@@ -129,6 +129,7 @@ Make sure you run the command in the location where the folder exists.
 ###  4. Create and Activate the Conda Environment
 Run:
 conda env create -f environment.yml
+
 conda activate UC-25-Summer-DATA601-AI-Agents
 
 Verify the Python version:
