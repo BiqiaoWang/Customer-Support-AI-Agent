@@ -64,7 +64,7 @@ docs = UnstructuredExcelLoader("your_knowledge.xlsx").load()
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=100)
 doc_splits = text_splitter.split_documents(docs)
 
-# ------------------------------------------
+# ----------------------------------------------
 # 4️⃣ Initialize Vector Database (VB)
 # ------------------------------------------
 # Using Qdrant instead of local FAISS
