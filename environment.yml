@@ -24,3 +24,5 @@ dependencies:
       - sentencepiece
       - streamlit
       - huggingface_hub
+      - groq       
+      - tqdm        
