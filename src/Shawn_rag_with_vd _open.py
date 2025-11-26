@@ -72,8 +72,14 @@ from langchain_community.vectorstores import Qdrant
 from langchain_openai import OpenAIEmbeddings
 from qdrant_client import QdrantClient
 
-# Connect to local Qdrant service
-qdrant_client = QdrantClient(host="localhost", port=6333)
+# Connect to cloud Qdrant service
+
+qdrant_client = QdrantClient(
+    url="https://935b80de-2d8b-4e02-930b-7c2c068dcb00.us-east4-0.gcp.cloud.qdrant.io:6333", 
+    api_key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.SaNmBM2Hbkiv3KgMWfMLLlkD5uHdBA4KCEThwWLlsTY",
+)
+
+print(qdrant_client.get_collections())
 
 # Vectorize the document chunks and store in Qdrant
 vectorstore = Qdrant.from_documents(
