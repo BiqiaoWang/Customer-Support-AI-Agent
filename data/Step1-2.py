@@ -68,12 +68,11 @@ def clean_text(text):
 
     # 2) Remove HTML tags
     text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
-    text = re.sub(r"</?[^>]+>", " ", text)   # 清理其他 HTML 标签，如 <p>、<div>
+    text = re.sub(r"</?[^>]+>", " ", text)   # Remove other HTML tags such as <p>, <div>
 
     # 3) Convert to lowercase
     text = text.lower()
 
-    
     # 4) Keep only alphanumeric characters and limited punctuation
     text = re.sub(r"[^a-z0-9\s.,!?'\’]", " ", text)
 
