@@ -1,0 +1,97 @@
+import pandas as pd
+import re
+from sentence_transformers import SentenceTransformer
+import numpy as np
+import hdbscan
+import json
+
+
+# ========= Step 1: Read cleaned CSV =========
+csv_path = "/Users/shawn/Desktop/internship/UC-25-Summer-DATA601-AI-Agents/UC-25-Summer-DATA601-AI-Agents/RAG_policy/Human-General-Returns_cleaned.csv"  # cleaned file from step 1
+
+text_col = "cleaned_answer"
+
+df = pd.read_csv(csv_path)
+texts = df[text_col].dropna().astype(str).tolist()
+
+print(f"Loaded {len(texts)} texts from CSV")
+
+
+# ========= Step 2: Split into sentences =========
+def split_to_sentences(text: str):
+    """
+    Rough sentence splitter:
+    - split by . ? ! or newline
+    - keep sentences with length >= 10 chars
+    """
+    parts = re.split(r'[\.!?]\s+|\n+', text)
+    return [p.strip() for p in parts if len(p.strip()) >= 10]
+
+
+sentences = []
+for t in texts:
+    sents = split_to_sentences(t)
+    sentences.extend(sents)
+
+# Deduplicate
+sentences = list(dict.fromkeys(sentences))
+print("Total unique sentences:", len(sentences))
+
+
+# ========= Step 3: Sentence-BERT embedding =========
+model = SentenceTransformer("all-MiniLM-L6-v2")
+embeddings = model.encode(sentences, batch_size=32, show_progress_bar=True)
+embeddings = np.asarray(embeddings)
+
+
+# ========= Step 4: HDBSCAN clustering =========
+# One dataset with returns + HR + general → topics会比较多，先用 8
+min_cluster_size = 8
+min_samples = None
+metric = "euclidean"
+
+clusterer = hdbscan.HDBSCAN(
+    min_cluster_size=min_cluster_size,
+    min_samples=min_samples,
+    metric=metric,
+    cluster_selection_method='eom'
+)
+
+cluster_labels = clusterer.fit_predict(embeddings)
+n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
+n_noise = list(cluster_labels).count(-1)
+print(f"Clusters (excluding noise): {n_clusters}")
+print(f"Noise points: {n_noise}")
+
+
+# ========= Step 5: Build cluster -> sentences map =========
+cluster_to_sentences = {}
+for sent, label in zip(sentences, cluster_labels):
+    if label == -1:
+        continue  # discard noise
+    cluster_to_sentences.setdefault(label, []).append(sent)
+
+print(f"Final clusters with sentences: {len(cluster_to_sentences)}")
+
+# Print a few sample clusters
+for cid, sents in list(cluster_to_sentences.items())[:5]:
+    print(f"\n=== Cluster {cid} (size: {len(sents)}) ===")
+    for s in sents[:3]:
+        print(" -", s)
+
+
+# ========= Step 6: Export clusters to JSON =========
+clusters_json = []
+for cid, sents in sorted(cluster_to_sentences.items(), key=lambda x: x[0]):
+    clusters_json.append({
+        "cluster_id": int(cid),
+        "sentences": sents,
+        "size": len(sents)
+    })
+
+output_file = "human_general_returns_clusters.json"
+with open(output_file, "w", encoding="utf-8") as f:
+    json.dump(clusters_json, f, ensure_ascii=False, indent=2)
+
+print(f"\n✅ Exported {len(clusters_json)} clusters to: {output_file}")
+print(f"📊 Stats: {sum(c['size'] for c in clusters_json)} sentences across {len(clusters_json)} clusters")
