@@ -1,6 +1,6 @@
 # Billing and Payments
 
-## Cluster 2 – Payment Methods and Plans
+## Cluster 0 – Payment Methods and Plans
 
 **Trigger Conditions**  
 When a user asks about accepted payment methods, billing plans, or subscription cycles.
@@ -49,7 +49,7 @@ When a user reports billing errors, duplicate charges, or invoice issues.
 
 ---
 
-## Cluster 0 – Additional Fees and Extra Costs
+## Cluster 2 – Additional Fees and Extra Costs
 
 **Trigger Conditions**  
 When a user asks about service pricing or potential additional charges.
