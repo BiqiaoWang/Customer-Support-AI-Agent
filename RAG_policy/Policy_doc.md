@@ -1,476 +1,321 @@
+# Account
+
+## Cluster 0 – Account and Access Management
+
+### Trigger Conditions
+
+When users:
+
+- Request new system access or changes to existing permissions (e.g., Email, Slack, SFDC, Jira, Dropbox, Google Drive, GitHub, Zoom host).
+- Ask how to configure accounts (email, calendar, multi-factor authentication (MFA), mobile email setup, etc.).
+
+---
+
+### Rules and Actions
+
+#### Access Requests (Provisioning / Permission Changes)
+
+- Collect required information:
+    - Requester’s name and company email;
+    - Systems or spaces requiring access (e.g., SFDC, specific Slack channels, a Dropbox folder);
+    - Required permission level (read-only / edit / admin);
+    - Whether explicit approval from a manager or system owner has been provided.
+- For new hires or role changes:
+    - Confirm that onboarding or role-change processes have been completed;
+    - Record the approver (e.g., manager CC’d on the request).
+- Validate the request against the internal access control matrix and the principle of least privilege:
+    - If compliant, create or update the account or add the user to the appropriate group;
+    - If not compliant, escalate the request for manual approval.
+
+#### Account Configuration (Self-Service and Setup Support)
+
+- Forgotten password or login failure:
+    - Guide users to use the self-service password reset process (SSO or “Forgot password” on the login page);
+    - Escalate to an account administrator if self-service fails.
+- Email / calendar / MFA / mobile device configuration:
+    - Provide high-level setup steps;
+    - Include links to internal or external guides (e.g., adding a company email account on a mobile device, enabling MFA, creating personal or departmental Google Calendars).
+
+#### Provisioning Issues (Access Not Available as Expected)
+
+- When users report: “I should have access, but I don’t”:
+    - Request error screenshots, timestamps, and expected permissions;
+    - Check for missing approvals, synchronization delays, or incomplete account provisioning;
+    - Escalate to system administrators or the identity provider (IdP) team if necessary.
+
+---
+
+### Output
+
+- For access requests:
+    - Confirm the received requirements and the systems involved;
+    - State that the request has been submitted according to company access policies and that results will be communicated via email or system notification once completed.
+- For configuration-related issues:
+    - Provide concise setup steps and links to detailed guides;
+    - Remind users to contact support again if the issue persists.
+- For provisioning issues:
+    - Explain that account and permission settings are under investigation;
+    - If additional approval or technical troubleshooting is required, clarify which team will follow up.
+
+  
+  
+  
 # Billing and Payments
 
 ## Cluster 0 – Payment Methods and Plans
 
-**Trigger Conditions**  
-When a user asks about accepted payment methods, billing plans, or subscription cycles.
+  **Trigger Conditions**  
+  When a user asks about accepted payment methods, billing plans, or subscription cycles.
+
+  **Rules and Actions**
+
+  - **Payment Methods**  
+    - Accepted payment methods include credit cards (Visa, Mastercard, Amex), bank transfers, and PayPal.  
+    - Customers may choose any supported method; if they request an alternative option (such as checks or other online payment services), manual feasibility verification is required.  
+    - If a payment fails, advise the user to verify their payment details, account balance, or contact their bank or payment provider.
+
+  - **Billing Plans and Cycles**  
+    - Available subscription cycles include monthly and annual billing.  
+    - Long‑term subscriptions (annual or multi‑period commitments) may be eligible for discounts or special offers.  
+    - Payment plans can be customized to meet specific customer needs; once agreed, they should be recorded in the system and confirmed as active.
+
+  **Output**  
+  - Provide the list of available payment methods, subscription cycles, and information about any applicable discounts.  
+  - If the customer requires a special payment method or custom plan, direct them to the appropriate manual review and approval process.
+
+  ---
+
+  ## Cluster 1 – Billing Discrepancies and Invoice Issues
+
+  **Trigger Conditions**  
+  When a user reports billing errors, duplicate charges, or invoice issues.
+
+  **Rules and Actions**
+
+  - **Information Gathering**  
+    - Collect essential information, including invoice number, account details, description of the discrepancy, affected amounts, and relevant dates.  
+    - If the information is incomplete, ask the user to provide the missing details before proceeding.
+
+  - **Verification and Investigation**  
+    - Check internal billing systems, APIs, and payment gateways for anomalies.  
+    - Compare invoice data with billing history and customer payment records.
+
+  - **Correction and Support**  
+    - If an error is confirmed, issue a corrected invoice or apply a billing adjustment.  
+    - Guide the customer to update payment information or modify their subscription plan if needed.  
+    - Ensure transparency and accuracy in billing by recording the outcome of the investigation in the system.
+
+  **Output**  
+  - Return the corrected invoice, updated billing information, or a clear description of the resolution.  
+  - If the issue cannot be fully resolved, escalate to human support and inform the customer how to contact the appropriate team.
+
+  ---
+
+  ## Cluster 2 – Additional Fees and Extra Costs
+
+  **Trigger Conditions**  
+  When a user asks about service pricing or potential additional charges.
+
+  **Rules and Actions**
+
+  - **Explanation of Additional Fees**  
+    - Specify that certain services or features may incur extra charges, for example: premium support, custom solutions, or feature upgrades.  
+    - Ensure that additional fee items and corresponding amounts are clearly documented in pricing materials or internal documentation.
+
+  - **Customer Communication**  
+    - Before a service or subscription is confirmed, clearly inform the customer about any potential extra fees.  
+    - Give customers the opportunity to review, discuss, and explicitly accept or decline additional charges.
+
+  **Output**  
+  - Provide the list of applicable extra fee items and amounts.  
+  - If the customer does not accept the additional costs, guide them toward standard service options or cancellation of custom features.  
+  - Ensure that all additional fees are recorded in the system or contract for future reference.
+
+  ---
+
+
+# Returns and Exchanges
+
+## Cluster 0 – Standard Returns
+
+**Trigger Conditions**
+
+* The customer asks about "how to return/refund," "return deadlines/conditions/shipping fees," etc.
+* The customer has decided to return an item but has not started the process yet.
 
 **Rules and Actions**
 
-- **Payment Methods**  
-  - Accepted payment methods include credit cards (Visa, Mastercard, Amex), bank transfers, and PayPal.  
-  - Customers may choose any supported method; if they request an alternative option (such as checks or other online payment services), manual feasibility verification is required.  
-  - If a payment fails, advise the user to verify their payment details, account balance, or contact their bank or payment provider.
+* **Information Gathering**:
 
-- **Billing Plans and Cycles**  
-  - Available subscription cycles include monthly and annual billing.  
-  - Long‑term subscriptions (annual or multi‑period commitments) may be eligible for discounts or special offers.  
-  - Payment plans can be customized to meet specific customer needs; once agreed, they should be recorded in the system and confirmed as active.
+  * Collect the order number, purchase date, and product name.
+  * Confirm whether the request is within the 30-day return window, whether the item is unused and in its original packaging, and whether proof of purchase is available.
+* **Policy Explanation**:
 
-**Output**  
-- Provide the list of available payment methods, subscription cycles, and information about any applicable discounts.  
-- If the customer requires a special payment method or custom plan, direct them to the appropriate manual review and approval process.
+  * Clearly state that most items must be returned within 30 days of receipt and require original packaging and a receipt/order number.
+  * Explain that if the return is not due to a defect or incorrect shipment, return shipping is usually paid by the customer, and a restocking fee may apply.
+* **Process Guidance**:
+
+  * Guide the customer to initiate the request through the online returns portal or contact form.
+  * Inform the customer that the return address will be provided via the portal or email, and should not be manually created in the conversation.
+* **Exception Handling**:
+
+  * If the customer mentions clearance items or special products, remind them that return eligibility depends on the specific policy, and escalate to human support if necessary.
+
+**Output**
+
+* **For the customer**: a standard response including:
+
+  * Whether the request meets the 30-day and "unused, original packaging" requirements;
+  * How to initiate a return in the portal;
+  * Who is responsible for return shipping and any potential restocking fees;
+  * A note that refunds are usually issued to the original payment method within 5–7 business days after the item is received, without promising a more specific date.
 
 ---
 
-## Cluster 1 – Billing Discrepancies and Invoice Issues
+## Cluster 1 – Exchanges
 
-**Trigger Conditions**  
-When a user reports billing errors, duplicate charges, or invoice issues.
+**Trigger Conditions**
+
+* The customer explicitly requests an exchange, such as changing size/model or replacing a defective item with the same product.
 
 **Rules and Actions**
 
-- **Information Gathering**  
-  - Collect essential information, including invoice number, account details, description of the discrepancy, affected amounts, and relevant dates.  
-  - If the information is incomplete, ask the user to provide the missing details before proceeding.
+* **Information Gathering**:
 
-- **Verification and Investigation**  
-  - Check internal billing systems, APIs, and payment gateways for anomalies.  
-  - Compare invoice data with billing history and customer payment records.
+  * Order number, product name, serial number, and purchase date.
+  * Reason for exchange (defect, incorrect purchase, or personal preference).
+* **Eligibility Check**:
 
-- **Correction and Support**  
-  - If an error is confirmed, issue a corrected invoice or apply a billing adjustment.  
-  - Guide the customer to update payment information or modify their subscription plan if needed.  
-  - Ensure transparency and accuracy in billing by recording the outcome of the investigation in the system.
+  * Verify whether the request is within 30 days, whether the item must be in original packaging with all accessories, and whether the original receipt is required.
+* **Shipping and Timing**:
 
-**Output**  
-- Return the corrected invoice, updated billing information, or a clear description of the resolution.  
-- If the issue cannot be fully resolved, escalate to human support and inform the customer how to contact the appropriate team.
+  * Explain that responsibility for shipping costs depends on the reason for the exchange; if documentation is not explicit, use neutral wording such as "subject to review."
+  * Inform the customer that exchanges are usually completed within 7–10 business days after the returned item is received.
+* **Escalation**:
+
+  * For technical defects (requiring error descriptions) or complex multi-item cases, escalate to second-line or specialist support.
+
+**Output**
+
+* **For the customer**: explain whether the exchange is eligible, what needs to be returned, whether shipping fees may apply, and that processing typically takes 7–10 business days.
 
 ---
 
-## Cluster 2 – Additional Fees and Extra Costs
+## Cluster 2 – Return and Exchange Process & RMA Handling
 
-**Trigger Conditions**  
-When a user asks about service pricing or potential additional charges.
+**Trigger Conditions**
+
+* The customer asks "where is the return address," "how do I proceed," or reports issues with the returns portal.
+* The customer has already initiated a request but is unsure about the next step, such as needing an RMA.
 
 **Rules and Actions**
 
-- **Explanation of Additional Fees**  
-  - Specify that certain services or features may incur extra charges, for example: premium support, custom solutions, or feature upgrades.  
-  - Ensure that additional fee items and corresponding amounts are clearly documented in pricing materials or internal documentation.
+* **Information Gathering**:
 
-- **Customer Communication**  
-  - Before a service or subscription is confirmed, clearly inform the customer about any potential extra fees.  
-  - Give customers the opportunity to review, discuss, and explicitly accept or decline additional charges.
+  * Order number or return reference number (Return Merchandise Authorization, RMA);
+  * The step where the customer is blocked (unable to log into the portal, missing email, unclear RMA, etc.).
+* **Process Explanation**:
 
-**Output**  
-- Provide the list of applicable extra fee items and amounts.  
-- If the customer does not accept the additional costs, guide them toward standard service options or cancellation of custom features.  
-- Ensure that all additional fees are recorded in the system or contract for future reference.
+  * Break down the steps:
+
+    1. Submit a request in the online returns portal;
+    2. The system reviews and generates an RMA number (if applicable);
+    3. The return address and any prepaid shipping label are provided via email or portal page;
+    4. Once the warehouse receives the item, a refund or exchange is triggered.
+* **Error / Exception Handling**:
+
+  * If the portal shows errors, collect screenshots or error messages and create an internal ticket;
+  * Provide the customer with a backup option (e.g., email attachment for the label), but do not promise guaranteed availability on the bot side.
+
+**Output**
+
+* **For the customer**: step-by-step guidance to complete the blocked stage, clearly stating where to find the RMA and how to obtain the return label.
 
 ---
 
-# Customer Pre‑Sales Engagement
+## Cluster 3 – Return and Exchange Status & Delays
 
-## Cluster 0 – Campaign Performance Optimization
+**Trigger Conditions**
 
-**Trigger Conditions**  
-When a user asks how to improve digital campaign performance, optimize ad spend, or reports issues with campaign metrics.
+* The customer asks "I sent the return but heard nothing," "how long until the refund," or "have you received it?"
+* The customer complains about slow progress or lack of updates.
 
 **Rules and Actions**
 
-- **Performance Analysis and Optimization**  
-  - Analyze current campaign performance indicators such as click‑through rate, conversion rate, and ROI.  
-  - Provide targeted recommendations, including adjustments to targeting, ad creatives, messaging, and bidding strategies.  
-  - Guide the user in refining digital strategy, including audience definition and message alignment with campaign goals.
+* **Information Gathering**:
 
-- **Information Collection and Investigation**  
-  - Request detailed campaign data (channels, budget, time period, audience, key metrics) and expected outcomes.  
-  - If information is incomplete, ask the user to supply additional campaign details, historical data, and objectives.
+  * Order number or return number, shipment date, and tracking number.
+* **Status Check (Bot Logic)**:
 
-- **Exception Handling**  
-  - If campaign performance consistently falls short of expectations, recommend a broader review of the marketing strategy or suggest engaging professional consulting services.
+  * If real-time status is available, return labels such as received / in transit / processing.
+  * If status cannot be retrieved or the case exceeds the usual processing time (5–7 business days after receipt), mark it as an exception and escalate to human support.
+* **Communication Strategy**:
 
-**Output**  
-- Provide a concise performance assessment and a set of concrete optimization recommendations.  
-- If deeper analysis is needed, propose expert guidance or a follow‑up consultation session.
+  * Apologize first, then explain that refunds are usually completed within 5–7 business days, but this case requires further review.
+  * Do not fabricate specific dates; use neutral assurances such as "as soon as possible" or "you will be notified once the review is complete."
+
+**Output**
+
+* **For the customer**:
+
+  * The current known status (e.g., "the package has been delivered to the warehouse and is under inspection");
+  * Whether a refund or exchange has been triggered;
+  * If further investigation is needed, explain that a human team will follow up and provide an expected response window (e.g., "usually within 1–2 business days").
 
 ---
 
-## Cluster 1 – Social Media Engagement Improvement
+## Cluster 4 – Policy / Process Changes and System Refactoring Requests
 
-**Trigger Conditions**  
-When a user reports low engagement on social media or asks how to increase interaction and audience activity.
+**Trigger Conditions**
+
+* Internal emails or B2B customers request changes to the return/exchange process, RMA microservices, or portal experience.
 
 **Rules and Actions**
 
-- **Engagement Analysis and Improvement**  
-  - Review engagement metrics such as likes, comments, shares, and follower growth.  
-  - Propose tailored improvement plans, including content strategy adjustments, optimized posting times, and interactive campaigns.
+* **Information Gathering**:
 
-- **Information Collection and Support**  
-  - Gather information about the platforms used, audience profiles, current content types, and posting frequency.  
-  - Offer specific tactics to increase engagement, such as content themes, call‑to‑action design, and community management practices.
+  * Change objectives, such as adding new fields, supporting multi-tenancy, adjusting SLAs, or integrating with CI/CD or microservices.
+  * Scope of impact: affected systems and teams (Agile teams, microservice names).
+* **Assessment and Escalation**:
 
-- **Exception Handling**  
-  - If engagement remains low over time, recommend a broader content strategy review or the use of paid promotion to boost reach.
+  * Log the request into the product or engineering backlog without committing to a delivery date at the frontline.
+  * If the change has an obvious impact on current customer experience, suggest a temporary workaround that remains consistent with official policy.
 
-**Output**  
-- Provide an engagement analysis summary and concrete recommendations to increase interaction.  
-- Where appropriate, share information about available social media management or consulting services.
+**Output**
+
+* **For the requester**: confirm receipt of the request, state that technical feasibility and timelines will be evaluated, and that updates will be communicated separately without providing specific dates.
 
 ---
 
-## Cluster 2 – Data Analytics for Investment Optimization
+## Cluster 5 – Refund Amount and Fee Disputes
 
-**Trigger Conditions**  
-When a user inquires about data analytics services, tools for optimizing investment strategies, or reports inconsistencies in analytical reports.
+**Trigger Conditions**
 
-**Rules and Actions**
-
-- **Data Analytics Services**  
-  - Describe available analytics offerings: market trend analysis, portfolio optimization, risk assessment, and performance monitoring.  
-  - Include capabilities such as predictive modeling, portfolio analysis, data visualization, and real‑time dashboards.
-
-- **Tool Selection and Issue Resolution**  
-  - Help users choose appropriate analytics tools (e.g., Alteryx, DataRobot, Tableau, Power BI) based on their requirements.  
-  - Investigate data inconsistencies by checking integrations, API synchronization, data pipelines, and configuration.
-
-- **Investment Strategy Optimization**  
-  - Provide decision support based on data insights, including risk/return trade‑off and diversification guidance.  
-  - Support custom analyses by adjusting models and parameters to match client‑specific needs.
-
-- **Exception Handling**  
-  - If reports remain inconsistent or integrations fail, initiate a technical investigation and provide temporary workarounds where possible.  
-  - If a strategy appears ineffective, suggest re‑evaluating the analytical model, data sources, or assumptions.
-
-**Output**  
-- Deliver an overview of analytics services, recommended tools, and investment optimization suggestions.  
-- If problems are found, provide a diagnostic summary and an estimated remediation timeline.
-
----
-
-## Cluster 3 – Digital Marketing for Brand Growth
-
-**Trigger Conditions**  
-When a user asks about digital marketing strategies, brand‑growth approaches, or how to improve online visibility.
+* The customer disputes the refund amount or claims they were overcharged for shipping or restocking fees.
 
 **Rules and Actions**
 
-- **Digital Marketing Strategy**  
-  - Present a full range of services: social media management, content creation, search engine optimization (SEO), and paid advertising.  
-  - Design customized strategies based on business goals and target audiences.
+* **Information Gathering**:
 
-- **Multichannel Marketing**  
-  - Recommend multichannel approaches, including social media, email marketing, content marketing, and influencer partnerships.  
-  - Emphasize brand awareness and engagement through creative content and targeted campaigns.
+  * Order number, original payment amount, and the amount the customer believes should be refunded, with reasons.
+* **Rule Application**:
 
-- **Optimization and Iteration**  
-  - Monitor campaign performance continuously and adjust tactics as needed.  
-  - Provide best practices and market insights relevant to brand growth.
+  * Compare the return type (standard return vs. defective/incorrect shipment), shipping fee responsibility, and restocking fee rules.
+  * The bot provides only preliminary explanation logic and does not directly adjust amounts.
+* **Escalation**:
 
-- **Exception Handling**  
-  - If current strategies do not meet expectations, conduct a strategy audit and propose adjustments.  
-  - If brand growth stalls, re‑evaluate target markets, positioning, and competitive landscape.
+  * All monetary disputes are automatically escalated to finance or second-line review.
 
-**Output**  
-- Provide a digital marketing strategy proposal, service package options, and expected outcomes.  
-- Offer case studies or client references if the user requests further validation.
+**Output**
 
----
+* **For the customer**:
 
-## Cluster 4 – Flexible Pricing and Custom Plans
+  * Explain the current refund calculation logic (e.g., why shipping or restocking fees were deducted); if unclear, use neutral language such as "this requires further review by the finance team."
+  * Inform the customer that the refund amount will be re-confirmed after the review, avoiding any commitment to a specific outcome.
 
-**Trigger Conditions**  
-When a user asks about pricing, plan options, or custom solutions.
 
-**Rules and Actions**
 
-- **Pricing Structure**  
-  - Explain tiered pricing plans based on number of users, feature sets, support levels, and degree of customization.  
-  - Clarify which factors most strongly influence price (e.g., scale, advanced features, premium support).
-
-- **Custom Solutions**  
-  - Create tailored proposals that align with the customer’s business requirements and budget.  
-  - Offer flexible pricing options where standard plans are not sufficient.
-
-- **Exception Handling**  
-  - If standard pricing does not meet the customer’s needs, initiate a custom quotation process.
-
-**Output**  
-- Provide detailed pricing plans, feature comparisons, and any available custom quotes.  
-- If needed, suggest a sales consultation to discuss complex or large‑scale requirements.
-
----
-
-## Cluster 5 – Medical Data Security
-
-**Trigger Conditions**  
-When a user asks about medical data protection, HIPAA compliance, or reports data‑security concerns.
-
-**Rules and Actions**
-
-- **Security Controls**  
-  - Describe core safeguards: encryption in transit and at rest, strong access control, and security audit logging.  
-  - Emphasize compliance with relevant regulations such as HIPAA and industry data‑protection standards.
-
-- **Data Protection Measures**  
-  - Recommend advanced cryptographic protocols (e.g., AES, TLS) and role‑based access control with multi‑factor authentication.  
-  - Encourage regular backup, secure key management, and least‑privilege access policies.
-
-- **Security Audits and Monitoring**  
-  - Advise on periodic security audits, vulnerability assessments, and continuous monitoring.  
-  - Promote deployment of threat detection and prevention systems.
-
-- **Exception Handling**  
-  - In case of suspected breaches or vulnerabilities, initiate incident‑response procedures: investigation, containment, remediation, and notification.  
-  - If compliance gaps are identified, implement remedial actions until requirements are fully met.
-
-**Output**  
-- Provide a description of security controls, compliance posture, and recommended best practices.  
-- For active incidents, supply an incident summary and an estimated remediation plan.
-
----
-
-## Cluster 6 – Security Enhancement Guidance
-
-**Trigger Conditions**  
-When a user requests detailed guidance on improving security, configuration assistance, or implementation of additional controls.
-
-**Rules and Actions**
-
-- **Implementation Guidance**  
-  - Supply detailed documentation and configuration steps for security features.  
-  - Assist with deploying additional protections, such as firewalls, encryption policies, and access‑control mechanisms.
-
-- **Assessment and Improvement**  
-  - Review existing security measures and highlight areas for enhancement.  
-  - Provide incident‑response playbooks and security best‑practice guides.
-
-- **Exception Handling**  
-  - If configuration is complex or implementation is blocked, offer step‑by‑step guidance or professional services.
-
-**Output**  
-- Deliver security enhancement guides, configuration documents, and best‑practice recommendations.  
-- If specialized help is required, outline available security consulting services.
-
----
-
-## Cluster 7 – Project Management SaaS Features
-
-**Trigger Conditions**  
-When a user asks about features, pricing, integration options, or reports integration issues related to the project‑management SaaS.
-
-**Rules and Actions**
-
-- **Feature Overview**  
-  - Present key capabilities such as task management, team collaboration, dashboards, and reporting.  
-  - Highlight scalability and available integrations with existing tools.
-
-- **Pricing and Support**  
-  - Explain tiered pricing based on team size and feature needs.  
-  - Describe support levels and service‑level agreements (SLAs).
-
-- **Integration Issue Resolution**  
-  - Investigate integration problems involving APIs, data synchronization, or configuration.  
-  - Provide integration documentation and technical support.
-
-- **Exception Handling**  
-  - For persistent integration or feature issues, offer troubleshooting assistance and, if necessary, escalation to engineering.
-
-**Output**  
-- Provide feature lists, pricing details, integration guides, and relevant case studies.  
-- When problems occur, offer support contact information and expected resolution timelines.
-
----
-
-## Cluster 8 – Integration Process and Documentation
-
-**Trigger Conditions**  
-When a user needs guidance on integrations, API documentation, or technical setup support.
-
-**Rules and Actions**
-
-- **Integration Guidance**  
-  - Provide step‑by‑step integration instructions and best practices.  
-  - Share API references, SDKs, and developer guides.
-
-- **Support and Resources**  
-  - Offer links to support portals, tutorials, webinars, and knowledge‑base articles.  
-  - Provide tailored integration advice based on the user’s current environment and requirements.
-
-- **Information Collection and Customization**  
-  - Collect details about the user’s existing systems and integration goals.  
-  - Adjust recommendations and integration approaches according to specific needs.
-
-- **Exception Handling**  
-  - If technical obstacles arise, offer structured troubleshooting or professional development support.
-
-**Output**  
-- Return integration documentation, API specifications, setup guides, and support resources.  
-- Where custom assistance is needed, propose a technical consultation session.
-
----
-
-# Human‑General‑Returns
-
-## Cluster 0 – Return and Exchange Process
-
-**Trigger Conditions**  
-When a user asks about product return/exchange procedures, time limits, status tracking, or reports issues with the return system.
-
-**Rules and Actions**
-
-- **Eligibility and Requirements**  
-  - Typical return window: within 30 days of purchase or receipt.  
-  - Item condition: unused, in original condition, with original packaging and proof of purchase.  
-  - Return initiation: via online returns portal or contact form.
-
-- **Processing and Timelines**  
-  - Confirm receipt of returned items and verify condition.  
-  - Standard processing time: 5–7 business days after receipt to complete refund or exchange.  
-  - Provide status updates during processing.
-
-- **Information Collection and Support**  
-  - If the portal malfunctions, gather error details and user information to investigate system issues.  
-  - Direct users to the official return‑policy page as a reference.
-
-- **Exception Handling**  
-  - If returns fall outside policy (e.g., after 30 days, used items, missing packaging), explain reasons for denial.  
-  - If processing exceeds expected timelines, prioritize the case and consider goodwill gestures (such as free shipping or discount coupons).
-
-**Output**  
-- Provide confirmation of return eligibility, expected processing time, and tracking information.  
-- For system issues, offer temporary alternatives and an estimated fix time.
-
----
-
-## Cluster 1 – Documentation and Integration Support
-
-**Trigger Conditions**  
-When a user requests integration documentation, case studies, success stories, or implementation guidance.
-
-**Rules and Actions**
-
-- **Documentation Resources**  
-  - Provide comprehensive integration materials: API specs, SDKs, configuration guides, and best‑practice documents.  
-  - Share case studies, success stories, and client testimonials where relevant.  
-  - Offer FAQs, video tutorials, and step‑by‑step manuals.
-
-- **Support Modes**  
-  - Self‑service: direct users to online documentation and resource portals.  
-  - Assisted support: offer to schedule calls to walk through features and integration options.  
-  - Customized materials: prepare tailored documents based on the user’s environment.
-
-- **Integration Assistance**  
-  - Collect information about existing systems and integration requirements.  
-  - Recommend suitable integration approaches and related tools/APIs.  
-  - Provide setup guidance and troubleshooting resources.
-
-- **Exception Handling**  
-  - If documentation is unclear or integration is complex, offer one‑on‑one technical consulting or training.  
-  - If case studies do not match the user’s industry, supply more relevant examples.
-
-**Output**  
-- Deliver documentation links, case‑study materials, integration guides, and available support options (self‑service or live session).  
-- For deeper needs, schedule meetings with technical specialists.
-
----
-
-## Cluster 2 – Investment Returns Analysis Issues
-
-**Trigger Conditions**  
-When a user reports problems with investment return calculations, abnormal performance volatility, or inaccurate predictive models.
-
-**Rules and Actions**
-
-- **Issue Acknowledgment and Initial Response**  
-  - Confirm receipt and acknowledge the importance of accurate investment analysis.  
-  - Commit to supporting investigation and resolution.
-
-- **Investigation and Analysis**  
-  - Perform root‑cause analysis covering data sources, calculation logic, algorithms, and parameters.  
-  - Work with the user to identify where the issue occurs: input data, processing, or reporting layer.  
-  - For model‑related issues, review model assumptions, training data, and prediction logic.
-
-- **Problem Classification**  
-  - Data‑quality issues: check completeness, accuracy, and consistency.  
-  - Computation issues: validate formulas, parameters, and business rules.  
-  - Model‑performance issues: evaluate accuracy, overfitting/underfitting, and timeliness.
-
-- **Exception Handling**  
-  - If the issue is complex, allocate a dedicated analysis team and extend the investigation timeline if necessary.  
-  - If models show systemic flaws, recommend model revision or alternative analytical methods.
-
-**Output**  
-- Provide an issue acknowledgment, preliminary diagnosis, and collaborative resolution plan.  
-- For deeper analyses, share a detailed investigation schedule.
-
----
-
-## Cluster 3 – Mixed: Security Incident and SaaS Onboarding
-
-This cluster contains two separate themes.
-
-### Part A – Security Incident Acknowledgment
-
-**Trigger Conditions**  
-When a user reports a security incident (data breach, unauthorized access) or medical‑data security concerns.
-
-**Rules and Actions**
-
-- **Incident Receipt and Confirmation**  
-  - Acknowledge receipt of the incident report and thank the user for timely notification.  
-  - Record incident details: time, scope, impacted systems, and steps already taken.
-
-- **Emergency Response**  
-  - Escalate to the security team for urgent handling.  
-  - Assess impact severity and affected data.  
-  - Assist in applying immediate containment measures to prevent further damage.
-
-- **Follow‑Up Actions**  
-  - Commit to a thorough investigation of root causes and impact.  
-  - Provide regular updates on investigation progress and outcomes.
-
-- **Exception Handling**  
-  - If legal or regulatory requirements apply (e.g., HIPAA), initiate compliance reviews and regulatory reporting.  
-  - For major incidents, activate crisis‑management processes and communication plans.
-
-**Output**  
-- Provide an incident acknowledgment, case or ticket ID, security team contact information, and initial response steps.  
-- Share an estimated timeline for investigation and updates.
-
-### Part B – SaaS Onboarding Process
-
-**Trigger Conditions**  
-When a user asks about SaaS onboarding steps, encounters access issues, or raises subscription‑related return concerns.
-
-**Rules and Actions**
-
-- **Onboarding Support**  
-  - Offer comprehensive onboarding materials: setup guides, feature walkthroughs, and best practices.  
-  - Help resolve login, permission, and access issues.
-
-- **Subscription Management**  
-  - Handle subscription changes or cancellations according to terms.  
-  - Address technical issues encountered during SaaS usage.
-
-- **Personalized Assistance**  
-  - Provide tailored onboarding based on user role and use case.  
-  - Support bulk onboarding and permission configuration for team accounts.
-
-- **Exception Handling**  
-  - If onboarding is complex, provide one‑to‑one onboarding sessions.  
-  - If persistent functional issues arise, escalate to senior technical support.
-
-**Output**  
-- Supply onboarding links, troubleshooting guidance, and follow‑up support options.  
-- If personalized help is needed, schedule sessions with onboarding specialists.
-
----
-
-# Technical and IT Support
+#  IT & Technical Support
 
 ## Cluster 0 – SaaS Platform Performance and Integration Issues
 
@@ -740,9 +585,8 @@ When a user requests stronger protection for medical data, reports security gaps
 
 ---
 
-# Technical and IT Support – Additional Domain (Elasticsearch and Incidents)
 
-## Cluster 0 – Elasticsearch Support and Troubleshooting
+## Cluster 9 – Elasticsearch Support and Troubleshooting
 
 **Trigger Conditions**  
 When users experience Elasticsearch update issues, connection failures, query/indexing errors, integration requests, or compatibility concerns.
@@ -767,7 +611,7 @@ When users experience Elasticsearch update issues, connection failures, query/in
 
 ---
 
-## Cluster 1 – System Hardware Configuration and Performance Recommendations
+## Cluster 10 – System Hardware Configuration and Performance Recommendations
 
 **Trigger Conditions**  
 When users request hardware requirements or performance recommendations for deployments or specific software (e.g., analytics platforms).
@@ -792,7 +636,7 @@ When users request hardware requirements or performance recommendations for depl
 
 ---
 
-## Cluster 2 – Comprehensive Incident Response and Technical Support
+## Cluster 11 – Comprehensive Incident Response and Technical Support
 
 **Trigger Conditions**  
 When users report outages, service degradation, security incidents, performance issues, software crashes, integration failures, or request general technical assistance.
@@ -831,3 +675,372 @@ When users report outages, service degradation, security incidents, performance 
 - Provide an incident‑response report with timeline, root cause, actions taken, impact, and preventive measures.  
 - Offer personalized support plans and relevant documentation (integration manuals, security white papers, API guides).  
 - Share escalation paths for advanced services such as security audits or architecture reviews.
+
+
+
+# Security
+
+## Cluster 0 Multi-Factor Authentication (MFA) Setup and Troubleshooting
+
+**Trigger Conditions**
+
+When a user asks how to enable MFA, or reports issues such as being unable to complete MFA setup, not receiving verification codes, or device/system incompatibility.
+
+**Rules and Actions**
+
+- **Standard Enablement Scenarios**
+    - Provide MFA setup steps for different systems (VPN, cloud storage, HR portals, project management systems, internal knowledge bases, analytics platforms, etc.).
+    - Explain supported authentication methods, including TOTP apps, SMS, email, and hardware tokens, and remind users to install or prepare the required devices or apps.
+    - Emphasize the use of strong passwords and the secure storage of backup recovery codes.
+- **Configuration Conflicts and Compatibility Issues**
+    - For cases such as conflicts with existing security software or policies, legacy systems not supporting new protocols, or mismatches between enterprise policies and third-party apps:
+        - Collect device type, operating system version, authentication app used, error messages, and timestamps.
+        - Confirm supported solutions based on the internal compatibility matrix, such as adjusting policies, providing alternative authentication methods, or performing manual configuration.
+    - For issues such as TOTP failures caused by time zone mismatches or carrier-related SMS delivery problems:
+        - Guide users to synchronize system time and verify time zone settings;
+        - Provide alternative authentication methods (such as authenticator apps or backup email).
+
+**Output**
+
+- Return the MFA configuration guide, key considerations, and common troubleshooting steps for the relevant system.
+- If the issue cannot be resolved automatically, create an escalation ticket with device information, error types, and attempted steps, and route it to the security or infrastructure team.
+
+---
+
+## Cluster 1 Phishing Email Handling and Email Security
+
+**Trigger Conditions**
+
+When a user reports suspicious or phishing emails, asks about the reporting process, or reports cases where phishing emails bypassed filtering, were incorrectly marked as safe, or were forwarded.
+
+**Rules and Actions**
+
+- **Standard Reporting Process**
+    - Instruct users to report phishing emails using company-approved methods:
+        - Use the email client’s “Report Phishing/Spam” button, or
+        - Forward the email to the designated security mailbox or automated forwarding rule for the security team.
+    - Instruct users to retain full email headers, body content, and attachments, and not to click suspicious links.
+- **Filtering Bypass and Misoperations**
+    - For cases where phishing emails bypassed the gateway, were marked as safe, or were forwarded to external recipients:
+        - Immediately report to the security team and record the time, recipients, subject, sender, and any forwarding targets.
+        - Instruct affected users to stop interacting with the email, and update filtering rules, blocklists, and content-matching policies as needed.
+    - For cases where phishing emails were mistakenly marked as safe:
+        - Guide users to re-mark them as spam or phishing, and have the security team perform manual review and rule adjustments.
+
+**Output**
+
+- Provide users with standard phishing email reporting instructions and security precautions.
+- Internally generate a security investigation task, attaching email samples, scope of impact, and recommended rule-adjustment actions.
+
+---
+
+## Cluster 2 – Workstation and Endpoint Security Alerts
+
+**Trigger Conditions**
+
+When users report:
+
+- Abnormal alerts from endpoint security software (antivirus, DLP, endpoint protection);
+- Inability to enable or disable full-disk encryption, firewalls, or controls preventing unauthorized software;
+- Systems being marked as non-compliant or login anomalies occurring after following hardening or security configuration guidelines.
+
+**Rules and Actions**
+
+- **Information Collection and Initial Checks**
+    - Collect device type, operating system version, security software version, recent changes (updates or newly installed software), specific error messages, and timestamps.
+    - Verify whether the user has completed the required baseline setup according to the internal “Securing Your Workstation” guidelines.
+- **Policy and Configuration Troubleshooting**
+    - For issues such as group policies not applying or reverting after reboot, failure to update security definitions, or inability to modify firewall or encryption settings:
+        - Check domain policy or MDM deployment status, policy conflicts, and permission settings.
+        - Review endpoint logs, update logs, and security platform alerts.
+    - For intermittent failures of DLP rules or endpoint detection:
+        - Re-examine policy configuration and scope of application;
+        - If necessary, capture network traffic and logs to analyze potential synchronization or version issues.
+- **Remediation and Escalation**
+    - After identifying the issue, assist users in enabling required security features (full-disk encryption, firewalls, blocking unauthorized software) and ensure policies are successfully applied.
+    - If the issue cannot be resolved remotely or appears to be a system defect, escalate to security engineering or endpoint management teams with logs and reproduction steps attached.
+
+**Output**
+
+- Return to the user an explanation of the root cause, completed remediation actions, and follow-up recommendations (such as periodic checks and avoiding manual disabling of security features).
+- Internally record the endpoint security incident, affected policies, and remediation status for audit and future policy optimization.
+
+
+
+
+# General Inquiry
+
+## Cluster 1 – Organizational Structure and Process Information Requests
+
+**Trigger Conditions**
+
+- Inquiries about the organizational structure of a marketing agency or company, including department responsibilities and key contacts.
+- Requests to update internal records such as department responsibilities, process descriptions, service SLAs, or constraints.
+
+**Rules and Actions**
+
+- Collect scope details: which organization, which product line, and which fields need to be updated (org charts, contact lists, process documents).
+- If the knowledge base already contains the information, respond using official descriptions and remind the user that information may be updated periodically.
+- If internal confirmation is required, explain that verification with relevant teams is needed and request supporting materials (e.g., org charts or contact lists), without committing to a specific completion date.
+
+**Output**
+
+- Summarize the user’s update request.
+- Explain the currently available structure or process information, or state that additional details will be provided after verification.
+- Clearly list the materials required from the requester.
+- Use non-committal time expressions such as “we will follow up once confirmed.”
+
+---
+
+## Cluster 2 – General Product or Service Usage Questions
+
+**Trigger Conditions**
+
+- Statements such as “the instructions are unclear,” “the operation is confusing,” or “the service details are not clear.”
+- Requests for explanations of product or service features, use cases, or delivery models.
+
+**Rules and Actions**
+
+- First restate and clarify the intent: is the user trying to troubleshoot an issue, or learn how to use or plan the service?
+- When covered by the knowledge base:
+    - Provide a brief explanation and point to more detailed guides or documentation.
+- When the request goes beyond documentation and requires solution design:
+    - Provide only high-level principles and recommend contacting sales or consultants, rather than auto-generating a full solution.
+
+**Output**
+
+- Use 1–2 sentences to confirm understanding of the question.
+- Provide a concise explanation or overview of usage steps, and guide the user to detailed documentation.
+- If the question is advisory or strategy-oriented, suggest arranging further discussions and avoid giving specific operational or investment advice.
+
+---
+
+## Cluster 3 – General Technical or Integration Requests (Non-Critical)
+
+**Trigger Conditions**
+
+- Questions about integrating AutoCAD, IFTTT, WooCommerce, Sage, ActiveCampaign, or similar tools with existing platforms.
+- Requests for improvements such as UI optimization, onboarding updates, or new integrations.
+
+**Rules and Actions**
+
+- Determine the request type:
+    - Already supported integrations or features;
+    - New requirements or product enhancement requests.
+- For supported features:
+    - Confirm feasibility, outline high-level steps, and provide official documentation or configuration guides.
+- For new requests:
+    - Clarify the use case and expected benefits, and explain that the request will be forwarded to product or engineering teams for evaluation, without providing a delivery timeline.
+
+**Output**
+
+- Clearly state whether the feature is currently supported and the general approach.
+- For new requests, thank the user for the suggestion and explain that it will be reviewed, with updates communicated via official channels.
+- Avoid committing to specific release dates or implementation details.
+
+---
+
+## Cluster 4 – General Performance or Stability Issues
+
+**Trigger Conditions**
+
+- Reports of occasional slowness in dashboards or project boards, peak-time lag, or intermittent service interruptions.
+- Reports of occasional data sync failures or API timeouts while the system remains generally usable.
+
+**Rules and Actions**
+
+- Guide the user to provide three categories of information:
+    - Time window of occurrence;
+    - Scope of impact (users or functions affected);
+    - Error messages or observed behavior.
+- Provide basic self-check steps: clearing cache, switching browsers or networks, checking the status page.
+- If the description suggests a broad impact or a potential major incident, inform the user that the issue will be escalated to the incident or technical team.
+
+**Output**
+
+- Use brief language to acknowledge the issue and apologize.
+- Inform the user of initial self-check steps and request necessary logs or screenshots.
+- If escalation is required, state that the issue has been handed over to the technical team and that further updates will follow.
+
+---
+
+## Cluster 5 – General Data or Investment Analysis Inquiries
+
+**Trigger Conditions**
+
+- Questions about using data analysis to optimize investments or about required tools and methods.
+- Requests to integrate or upgrade advanced analytics tools, model features, or prediction frequencies.
+
+**Rules and Actions**
+
+- Distinguish between:
+    - Theoretical or methodological questions;
+    - Implementation requests for specific investment projects.
+- For theoretical questions:
+    - Introduce common analytical approaches and tool categories (e.g., BI tools, quantitative analytics platforms), and direct users to relevant documentation.
+- For project-based requests:
+    - Collect investment objectives and existing tool stacks; avoid providing advice on specific assets, and focus on tools and processes, recommending engagement with professional teams.
+
+**Output**
+
+- Summarize the user’s objective (e.g., increasing returns or reducing risk).
+- Provide possible analytical dimensions or tool directions without recommending specific securities.
+- Suggest next steps such as reviewing documentation or contacting an investment advisory team.
+
+---
+
+## Cluster 6 – General Digital Marketing and Brand Growth Inquiries
+
+**Trigger Conditions**
+
+- Questions about improving brand exposure, engagement, or conversion rates, especially in Gaming, Smart Home, or Software sectors.
+- Feedback such as declining engagement, algorithm changes, or outdated content, with a desire to optimize strategy.
+
+**Rules and Actions**
+
+- First ask the user to provide target audience details, primary channels, current KPIs, and observed trends.
+- Bot responses should be limited to:
+    - High-level attribution perspectives (audience, creatives, delivery settings, tracking configuration);
+    - General best practices (A/B testing, multi-channel strategies, basic data tracking).
+- Detailed campaign plans or budget allocation should be referred to marketing consultants or professional teams.
+
+**Output**
+
+- Point out several possible factors contributing to performance decline, avoiding specific media or budget recommendations.
+- Suggest 1–2 immediate checks the user can perform (e.g., verifying conversion tracking or redefining audiences).
+- Recommend consulting marketing advisors for a complete strategy.
+
+---
+
+## Cluster 7 – Healthcare Data and Security Information (Non-Emergency)
+
+**Trigger Conditions**
+
+- Questions about protecting data security and compliance in healthcare environments, such as HIPAA.
+- Requests for general security practices including encryption, access control, auditing, and backups.
+
+**Rules and Actions**
+
+- Emphasize that responses provide general security practices and do not constitute legal or compliance advice.
+- Responses may include:
+    - Common measures such as encryption, access controls, audit logging, role-based authorization, backups, and recovery;
+    - Recommendations to consult internal compliance, legal, or professional security advisors.
+- If the user describes a suspected data breach or exposure:
+    - Reclassify the issue as an Incident or Security case rather than General Inquiry, and advise immediate escalation.
+
+**Output**
+
+- Summarize key security practices and their purpose using non-legal language.
+- Clearly recommend consulting compliance or security teams for environment-specific requirements.
+- If incident signals are present, advise immediate handling through the incident response process.
+
+---
+
+
+## Cluster 8 – HR System Access and Payroll / Timekeeping Issues
+
+**Trigger Conditions**
+
+When employees report:
+
+- Inability to access the HR portal or payslips;
+- Payroll delays or incorrect payslips;
+- Outages or freezes in HR queues or HR-related SaaS systems.
+
+**Rules and Actions**
+
+- Collect information: employee account, affected functions (payroll, attendance, personal data), error time, and error messages.
+- Technical investigation: check recent system updates, server load, configuration changes, logs, and queue status; restart services or scale resources if necessary.
+- Business handling: verify whether payroll was missed or mispaid; perform manual reconciliation if needed and provide estimated resolution and back-pay arrangements.
+
+**Output**
+
+- Inform employees of the current handling status, expected recovery time, and temporary access methods (e.g., manual payroll exports).
+- If it is a systemic issue, create a high-priority incident and document root cause and preventive measures.
+
+---
+
+## Cluster 9 – Employee Onboarding, Training, and Offboarding / Attrition
+
+**Trigger Conditions**
+
+When users inquire about or report:
+
+- New employee onboarding processes, onboarding features in project management SaaS, or automated training modules;
+- Insufficient training resources or the need for data analytics tool training;
+- High attrition rates, insufficient onboarding, or lack of career development opportunities.
+
+**Rules and Actions**
+
+- Provide onboarding and training information: available formats (online courses, in-person sessions, webinars, self-paced learning with scheduled sessions), and whether automated training modules or templated workflows are supported.
+- Collect requirements: target roles, required tools (data analytics, investment optimization tools), preferred training format and timing.
+- For attrition and productivity issues: recommend HR-led root cause analysis (surveys, exit interviews, role clarification) and suggest strengthening training and development pathways.
+
+**Output**
+
+- Provide employees or managers with a clear overview of onboarding and training options (paths and whether fees apply).
+- For systemic attrition or training needs, log an improvement request for HR (e.g., “expand data analytics training programs”).
+
+---
+
+## Cluster 10 – HR Policies and Employee Benefits Clarification
+
+**Trigger Conditions**
+
+When employees inquire about:
+
+- Remote work or flexible work policies;
+- Employee benefits, especially when responses have been inconsistent or policies were recently updated.
+
+**Rules and Actions**
+
+- Collect policy context: employee country or region, department, and role type, as eligibility varies by role.
+- Provide a consistent explanation using the currently effective policy, avoiding interpretation of unverified details.
+- For repeated inconsistencies: record timelines and prior responses, and escalate to the HR policy owner for clarification and documentation updates.
+
+**Output**
+
+- Return a concise, unified explanation of benefits or policies, with official documentation or intranet links if needed.
+- Register cases of policy ambiguity or inconsistent communication as improvement items for HR handbook and FAQ updates.
+
+---
+
+## Cluster 11 – Organizational Structure, Role Overlap, and Employee Engagement
+
+**Trigger Conditions**
+
+When employees report:
+
+- Role overlap and unclear responsibilities after reorganizations, leading to reduced efficiency;
+- Noticeable declines in employee engagement or feeling excluded from communication channels.
+
+**Rules and Actions**
+
+- Collect information on affected roles, teams, overlapping tasks, and impacts on productivity and morale; gather existing surveys or meeting records.
+- Recommend follow-up meetings with management or HR to clarify roles and responsibilities (R&R) and identify communication gaps.
+- Suggest improvement measures such as redefining responsibilities, establishing regular communication mechanisms, or improving collaboration tool training.
+
+**Output**
+
+- Provide employees with confirmation of the issue, planned investigation steps, and an estimated feedback timeline.
+- For HR, log the case as an “organizational and communication improvement” item and track remediation outcomes.
+
+---
+
+## Cluster 12 – HR Documents, Handbooks, and Translation Issues
+
+**Trigger Conditions**
+
+When users report:
+
+- The need to update employee handbooks;
+- Errors in HR document translations (e.g., inaccuracies caused by machine translation tools).
+
+**Rules and Actions**
+
+- Collect document details: document type (policies, training materials, contracts) and language, and gather specific error examples.
+- Submit revision requests to HR content owners and professional translation or localization teams; do not rely on machine translation as the final version.
+
+**Output**
+
+- Inform the requester that the revision has been accepted, provide an estimated completion time, and share the updated document link once available.
