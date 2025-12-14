@@ -314,6 +314,131 @@ When users:
   * Inform the customer that the refund amount will be re-confirmed after the review, avoiding any commitment to a specific outcome.
 
 
+# Sales & Pre-sales
+
+## Cluster 1 – Product Information / Pricing / Solution Introduction
+
+### Trigger Conditions
+
+- Asking about product features, versions, packages, prices, discounts, trials/demos.
+- Requesting brochures, datasheets, case studies, or compliance/security module information.
+
+### Rules and Actions
+
+- **Information Collection**: Company size, industry, interested product lines, key requirements (security, integration, compliance, etc.).
+- **Existing Knowledge Base**: Provide a brief summary + link to features and price range; complex pricing inquiries to be followed up by sales.
+- **Architecture / Security / Compliance** (GDPR, ISO, HIPAA): Indicate that formal documents are available but require identity verification or requests from an authorized contact.
+
+### Output
+
+- Summarize the customer scenario and list the types of materials available (brochure, pricing sheet, certification documents, case studies).
+- Indicate next steps: demo or detailed document will be arranged by sales/technical team; avoid giving “formal quotes” on the spot.
+
+---
+
+## Cluster 2 – Integration Capabilities / Technical Pre-sales
+
+### Trigger Conditions
+
+- Asking whether the product can integrate with CRM, marketing tools, accounting/ERP, cloud platforms (Salesforce, Zoho, WooCommerce, Firebase, etc.).
+- Requesting architecture, API, webhook, compatibility, or performance details.
+
+### Rules and Actions
+
+- Confirm existing systems/versions, specific tools to integrate, and use case goals.
+- Supported integrations: explain support status, provide high-level integration approach, and link to official API/integration documentation.
+- For high-level technical assessment (architecture review, security review), only promise to schedule a technical pre-sales session; do not give a conclusion in the bot response.
+
+### Output
+
+- Clearly answer “support status + high-level integration approach.”
+- Inform the customer which technical documents will be sent/provided, and offer to schedule a technical meeting time window.
+
+---
+
+## Cluster 3 – Industry Solutions / Marketing and Data Analytics Consulting
+
+### Trigger Conditions
+
+- Asking how you help technology/finance/healthcare clients with digital marketing, brand growth, or investment data analytics.
+- Wanting to know success cases, methodologies, or tool combinations (CRM + analytics + advertising, etc.).
+
+### Rules and Actions
+
+- Collect: industry, goals (customer acquisition/conversion/retention/investment optimization), current tool stack.
+- The bot provides only high-level solutions: common channels, analysis approaches, and types of service packages.
+- Specific campaign design, investment advice, and pricing handled by sales/consultant follow-up.
+
+### Output
+
+- Briefly explain the types of strategies and services available and typical results (without revealing specific client information).
+- Invite the customer to share goals and budget range and offer a consultant call/meeting.
+
+---
+
+## Cluster 4 – Project Management SaaS / Pricing & Packages
+
+### Trigger Conditions
+
+- Asking about project management SaaS features, scalability, integrations, and pricing tiers.
+- Interested in trials, demos, or enterprise-customized quotes.
+
+### Rules and Actions
+
+- Distinguish between small team / medium / enterprise, record approximate user count and key module requirements.
+- The bot can explain:
+  - Available package tiers (feature differences, annual discounts if any);
+  - Supported major integrations and customization scope.
+- Enterprise-level or complex integration requirements: refer to sales for custom quote and contract explanation.
+
+### Output
+
+- Summarize 1–2 suitable package options based on customer scale and whether trial/demo is supported.
+- Inform that formal quotes or contracts require further sales follow-up.
+
+---
+
+## Cluster 5 – Healthcare / Security Pre-sales (Compliance & Certifications)
+
+### Trigger Conditions
+
+- Healthcare/IT clients asking if the product meets HIPAA, GDPR, ISO27001, etc.; requesting certification documents or security whitepapers.
+- Concerns about cloud/IoT device encryption, access control, audit capabilities.
+
+### Rules and Actions
+
+- Confirm customer type (hospital, vendor, etc.) and product modules to evaluate.
+- The bot can explain existing compliance certifications and high-level security measures.
+- Formal certificates and detailed security documents: indicate “can be provided to qualified contacts” and notify that security/sales team will send them.
+
+### Output
+
+- Clearly state which standards are covered, core security measures used (encryption, access control, audit/backup), in plain language.
+- Indicate that formal documents can be provided and request contact and company info for follow-up.
+
+---
+
+## Cluster 6 – Pre-sales Inquiry for Poor Digital Marketing Performance
+
+### Trigger Conditions
+
+- Marketing agencies or brands complaining about declining digital ad exposure/engagement/conversions, asking if your services can improve campaign performance.
+- Mention using your services or tools to enhance campaign results.
+
+### Rules and Actions
+
+- Guide them to provide: platform account, main channels, recent KPI changes, and optimization attempts.
+- The bot only provides initial analysis (audience, creative, frequency, data tracking) and explains the service scope.
+- Specific optimization plans and pricing handled by sales/consultant follow-up.
+
+### Output
+
+- Briefly indicate possible problem areas and explain how the team can help (audit, strategy rebuild, A/B testing support, etc.).
+- Invite the customer to schedule a meeting for a customized solution.
+
+
+
+
 
 #  IT & Technical Support
 
