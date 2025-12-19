@@ -591,15 +591,22 @@ def route_after_followup(state: State) -> str:
 
 
 def route_after_categorize(state: State) -> str:
-    """Router: after categorize, decide next step (no sentiment in first round)."""
-    if (state.get("ticket_type") or "").lower() == "billing and payments":
+    ticket_type = (state.get("ticket_type") or "").lower()
+    # Billing and Payments 先走风控
+    if ticket_type == "billing and payments":
         return "assess_billing_risk"
-    return "generate_first_round_reply"
+    # 其他类型：首轮一律先走 RAG
+    return "maybe_retrieve_rag_context"
+
 
 
 def route_after_billing_risk(state: State) -> str:
-    """Router: after billing risk, escalate if high, else continue."""
-    return "escalate" if state.get("escalated") else "generate_first_round_reply"
+    # 高风险直接升级，低风险才继续首轮自动回复
+    if state.get("escalated"):
+        return "escalate"
+    # 低风险 Billing 首轮也要先走 RAG
+    return "maybe_retrieve_rag_context"
+
 
 
 def greet(state: State) -> dict:
@@ -916,7 +923,7 @@ def generate_first_round_reply(state: State) -> dict:
         "clarifying question. Keep under 120 words."
     )
     system_prompt = (
-        "You are a customer support assistant. If RAG context is provided, use it as the primary source. "
+        "You are a customer support assistant. You have to use the RAG context as the primary source if it is provided. "
         "If no relevant context is present, answer from your own knowledge but stay accurate, specific, and respectful. "
         "Do not promise refunds, policy exceptions, or irreversible actions. "
         "Keep the tone helpful and concise."
@@ -1180,7 +1187,7 @@ workflow.add_conditional_edges(
     {
         "assess_billing_risk": "assess_billing_risk",
         # 对于非 Billing 场景，分类后先进入 RAG 节点，再生成首轮回复
-        "generate_first_round_reply": "maybe_retrieve_rag_context",
+        "maybe_retrieve_rag_context": "maybe_retrieve_rag_context",
     },
 )
 
@@ -1190,7 +1197,7 @@ workflow.add_conditional_edges(
     {
         "escalate": "escalate",
         # Billing 低风险场景，也先走 RAG 再生成首轮回复
-        "generate_first_round_reply": "maybe_retrieve_rag_context",
+        "maybe_retrieve_rag_context": "maybe_retrieve_rag_context",
     },
 )
 

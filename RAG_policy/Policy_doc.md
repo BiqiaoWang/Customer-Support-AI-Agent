@@ -190,7 +190,7 @@ When users:
 * **Shipping and Timing**:
 
   * Explain that responsibility for shipping costs depends on the reason for the exchange; if documentation is not explicit, use neutral wording such as "subject to review."
-  * Inform the customer that exchanges are usually completed within 7–10 business days after the returned item is received.
+  * Inform the customer that exchanges are usually completed within 5–7 business days after the returned item is received.
 * **Escalation**:
 
   * For technical defects (requiring error descriptions) or complex multi-item cases, escalate to second-line or specialist support.
