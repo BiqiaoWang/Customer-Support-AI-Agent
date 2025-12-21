@@ -239,7 +239,7 @@ def maybe_retrieve_rag_context(state: State) -> dict:
     status = state.get("status") or "NEW"
     turn = int(state.get("turn") or 0)
 
-    if status == "NEW" and turn <= 1:
+    if status == "NEW":
         return retrieve_rag_context(state)
 
     return {"rag_context": state.get("rag_context") or ""}
