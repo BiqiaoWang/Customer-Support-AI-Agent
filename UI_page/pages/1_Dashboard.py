@@ -1,82 +1,197 @@
 import streamlit as st
 import altair as alt
 import pandas as pd
+import datetime as dt
+
+# 让页面变宽铺满
+st.set_page_config(layout="wide")
+
+# 全局轻量样式：字体颜色、表头、标题
+st.markdown(
+    """
+    <style>
+    body, .stMarkdown, .stText, .stMetric label {
+        color: #333333;
+    }
+    .stDataFrame thead tr th {
+        background-color: #f5f6fa;
+        font-weight: 600;
+        color: #4a4a4a;
+        border-bottom: 1px solid #e1e4eb;
+    }
+    .stDataFrame tbody tr:hover {
+        background-color: #fafbff;
+    }
+    h1, h2, h3 {
+        font-weight: 700;
+        color: #222222;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.title("Ticket Dashboard")
 
-# 1. 确认 Workspace 已经写入过工单
+# 1. Check tickets
 if "tickets" not in st.session_state or st.session_state.tickets.empty:
-    st.warning("还没有工单，请先在 Workspace 页面创建一条。")
+    st.warning("No tickets yet. Please create one in the Workspace page.")
     st.stop()
 
-df = st.session_state.tickets
+df = st.session_state.tickets.copy()
 
-# 2. 上半部分：历史工单表
+# --- Convert date column (internal use only) ---
+df["Created Date"] = pd.to_datetime(
+    df["Created Time"], format="%m-%d-%Y", errors="coerce"
+).dt.date
+
+# 2. Date filter (affects everything below)
+st.subheader("Filters")
+col_from, col_to = st.columns(2)
+with col_from:
+    start_date = st.date_input(
+        "From",
+        value=df["Created Date"].min() if not df.empty else dt.date.today(),
+    )
+with col_to:
+    end_date = st.date_input(
+        "To",
+        value=df["Created Date"].max() if not df.empty else dt.date.today(),
+    )
+
+mask = (df["Created Date"] >= start_date) & (df["Created Date"] <= end_date)
+df_filtered = df[mask].copy()
+
+# 3. Top 5 history table
 st.subheader("History Tickets")
-st.dataframe(df, use_container_width=True)
 
-# 3. 下半部分：左侧 KPI，右侧两个图（先做简单版）
+
+
+df_sorted = df_filtered.sort_values(
+    by=["Created Date", "ID"], ascending=[False, False]
+)
+
+# 只展示一个时间字段（这里保留 Created Time）
+cols_to_show = [
+    "ID",
+    "Created Time",
+    "Status",
+    "Type",
+    "Sentiment",
+    "Escalation Needed",
+]
+table_data = df_sorted[cols_to_show]
+
+# 高度固定，内容多了在表格内部滚动
+st.dataframe(table_data, use_container_width=True, height=220)
+
+
+# 4. KPIs
 st.subheader("Support Ticket Analytics")
 
-left, right = st.columns([1, 2])
+kpi1, kpi2, kpi3 = st.columns(3)
 
-with left:
-    st.write("关键指标（示例，占位）")
-    # 真实逻辑以后再根据 df 来算，这里先用简单示例
-    new_today = len(df[df["Created Time"] == df["Created Time"].max()])
-    escalation_rate = (df["Escalation Needed"] == "Yes").mean() if not df.empty else 0.0
-    auto_resolved_rate = 1 - escalation_rate if not df.empty else 0.0
+new_in_range = len(
+    df_filtered[df_filtered["Created Date"] == df_filtered["Created Date"].max()]
+)
+escalation_rate = (
+    (df_filtered["Escalation Needed"] == "Yes").mean()
+    if not df_filtered.empty
+    else 0.0
+)
+auto_resolved_rate = 1 - escalation_rate if not df_filtered.empty else 0.0
 
-    st.metric("New tickets today", new_today)
+with kpi1:
+    st.metric("New tickets in range", new_in_range)
+with kpi2:
     st.metric("Auto‑resolution rate", f"{auto_resolved_rate*100:.0f}%")
+with kpi3:
     st.metric("Escalation rate", f"{escalation_rate*100:.0f}%")
 
+# 5. Charts
+st.subheader("Visual Analytics")
+# 让左边更宽、右边略窄
+left, right = st.columns([3, 2])
+
+# Sentiment bar chart
+with left:
+    st.markdown("**Sentiment distribution over time**")
+    if not df_filtered.empty:
+        sentiment_data = (
+            df_filtered.groupby(["Created Date", "Sentiment"])
+            .size()
+            .reset_index(name="count")
+        )
+
+        # 根据天数调节柱宽，<=7 天时更粗，更多时自动变细
+        n_days = sentiment_data["Created Date"].nunique()
+        bar_width = 40 if n_days <= 7 else 20
+
+        chart1 = (
+            alt.Chart(sentiment_data)
+            .mark_bar(size=bar_width)
+            .encode(
+                x=alt.X(
+                    "Created Date:T",
+                    title="Date",
+                    axis=alt.Axis(labelColor="#4a4a4a", titleColor="#4a4a4a"),
+                ),
+                y=alt.Y(
+                    "count:Q",
+                    title="Ticket count",
+                    axis=alt.Axis(labelColor="#4a4a4a", titleColor="#4a4a4a"),
+                ),
+                color=alt.Color(
+                    "Sentiment:N",
+                    scale=alt.Scale(
+                        domain=["Negative", "Non-Negative"],
+                        range=["#ff6b6b", "#4dabf7"],
+                    ),
+                    legend=alt.Legend(
+                        orient="bottom",
+                        title="Sentiment",
+                        labelColor="#4a4a4a",
+                        titleColor="#4a4a4a",
+                    ),
+                ),
+            )
+            .properties(height=300)
+            .configure_axis(gridColor="#e3e6f0")
+        )
+        st.altair_chart(chart1, use_container_width=True)
+    else:
+        st.info("No tickets in the selected date range.")
+
+# Ticket type pie chart
 with right:
-    c1, c2 = st.columns(2)
+    st.markdown("**Ticket type distribution**")
+    if not df_filtered.empty:
+        type_data = (
+            df_filtered.groupby("Type")
+            .size()
+            .reset_index(name="count")
+        )
 
-    with c1:
-        st.write("Sentiment Distribution Over Time")
-
-        # 为了避免一开始没数据出错，简单做个占位逻辑
-        if not df.empty:
-            # 用 Created Time + Sentiment 做一个计数柱状图
-            chart_data = (
-                df.groupby(["Created Time", "Sentiment"])
-                .size()
-                .reset_index(name="count")
+        chart2 = (
+            alt.Chart(type_data)
+            .mark_arc()
+            .encode(
+                theta=alt.Theta("count:Q", title="Tickets"),
+                color=alt.Color(
+                    "Type:N",
+                    legend=alt.Legend(
+                        orient="bottom",
+                        title="Type",
+                        columns=2,      # one row 2 items
+                        labelLimit=200, # avoid text truncation
+                        labelColor="#4a4a4a",
+                        titleColor="#4a4a4a",
+                    ),
+                ),
+                tooltip=["Type", "count"],
             )
-            chart1 = (
-                alt.Chart(chart_data)
-                .mark_bar()
-                .encode(
-                    x="Created Time:O",
-                    y="count:Q",
-                    color="Sentiment:N",
-                )
-                .properties(height=250)
-            )
-            st.altair_chart(chart1, use_container_width=True)
-        else:
-            st.info("暂无数据。")
-
-    with c2:
-        st.write("Ticket Type Distribution")
-
-        if not df.empty:
-            type_data = (
-                df.groupby("Type")
-                .size()
-                .reset_index(name="count")
-            )
-            chart2 = (
-                alt.Chart(type_data)
-                .mark_arc()
-                .encode(
-                    theta="count:Q",
-                    color="Type:N",
-                )
-                .properties(height=250)
-            )
-            st.altair_chart(chart2, use_container_width=True)
-        else:
-            st.info("暂无数据。")
+            .properties(height=300)
+        )
+        st.altair_chart(chart2, use_container_width=True)
+    else:
+        st.info("No tickets in the selected date range.")
