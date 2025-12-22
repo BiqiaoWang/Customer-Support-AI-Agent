@@ -117,23 +117,48 @@ left, right = st.columns([3, 2])
 with left:
     st.markdown("**Sentiment distribution over time**")
     if not df_filtered.empty:
+        # 1) 先按天 + 情绪聚合
         sentiment_data = (
             df_filtered.groupby(["Created Date", "Sentiment"])
             .size()
             .reset_index(name="count")
         )
 
-        # 根据天数调节柱宽，<=7 天时更粗，更多时自动变细
-        n_days = sentiment_data["Created Date"].nunique()
+        # 2) 构造最近 7 天完整日期序列（以当前过滤范围内的最大日期为结束）
+        last_day = df_filtered["Created Date"].max()
+        full_dates = pd.date_range(end=last_day, periods=7, freq="D").date
+        full_df = pd.DataFrame({"Created Date": full_dates})
+
+        # 3) 把聚合结果 merge 到完整日期上；没有数据的日期 count 为 0
+        sentiment_full = full_df.merge(
+            sentiment_data,
+            on="Created Date",
+            how="left",
+        )
+        sentiment_full["count"] = sentiment_full["count"].fillna(0)
+
+        # 没有情绪标签的行，你可以默认成 "Non-Negative" 或 "No data"
+        sentiment_full["Sentiment"] = sentiment_full["Sentiment"].fillna(
+            "Non-Negative"
+        )
+
+        # 4) 排序 + 文本标签
+        sentiment_full = sentiment_full.sort_values("Created Date")
+        sentiment_full["Created Date Str"] = sentiment_full["Created Date"].apply(
+            lambda d: d.strftime("%m-%d")
+        )
+
+        # 5) 根据天数调节柱宽（这里基本就是 7 天）
+        n_days = sentiment_full["Created Date"].nunique()
         bar_width = 40 if n_days <= 7 else 20
 
         chart1 = (
-            alt.Chart(sentiment_data)
+            alt.Chart(sentiment_full)
             .mark_bar(size=bar_width)
             .encode(
                 x=alt.X(
-                    "Created Date:T",
-                    title="Date",
+                    "Created Date Str:N",   # 最近 7 天每天一格
+                    title="Date (last 7 days)",
                     axis=alt.Axis(labelColor="#4a4a4a", titleColor="#4a4a4a"),
                 ),
                 y=alt.Y(
@@ -154,6 +179,7 @@ with left:
                         titleColor="#4a4a4a",
                     ),
                 ),
+                tooltip=["Created Date Str", "Sentiment", "count"],
             )
             .properties(height=300)
             .configure_axis(gridColor="#e3e6f0")
@@ -162,7 +188,7 @@ with left:
     else:
         st.info("No tickets in the selected date range.")
 
-# Ticket type pie chart
+# Ticket type pie chart（保持不变）
 with right:
     st.markdown("**Ticket type distribution**")
     if not df_filtered.empty:
@@ -182,8 +208,8 @@ with right:
                     legend=alt.Legend(
                         orient="bottom",
                         title="Type",
-                        columns=2,      # one row 2 items
-                        labelLimit=200, # avoid text truncation
+                        columns=2,
+                        labelLimit=200,
                         labelColor="#4a4a4a",
                         titleColor="#4a4a4a",
                     ),
