@@ -3,6 +3,8 @@ from langgraph.graph import StateGraph, END
 
 import os
 import string
+from datetime import datetime
+import pandas as pd
 from groq import Groq, APIStatusError
 
 
@@ -24,6 +26,7 @@ class State(TypedDict):
     events: list[str]             # simple log of steps taken
     turn: int                     # conversation turn counter
     history: list[dict]           # simple chat history [{"role": "...", "content": "..."}]
+    created_at: str             # timestamp of first valid user message
     input_valid: bool             # validation result
     input_meaningful: bool        # noise detection result
     input_continue: bool          # follow-up routing flag
@@ -60,6 +63,7 @@ ESCALATION_REPLY = (
     "We will resolve your issue as quickly as possible. Our helpful and professional staff "
     "will contact you shortly. Thank you for your patience!"
 )
+ESCALATION_LOG_FILENAME = "escalation_handover.xlsx"
 # CLOSING_PROMPT removed from responses per latest requirements
 
 
@@ -121,6 +125,87 @@ def _has_heading(text: str) -> bool:
     lowered = first_line.lower()
     return any(k in lowered for k in keywords)
 
+def _ensure_created_at(state: State) -> str:
+    """Return created_at timestamp for the first valid user message."""
+    created_at = state.get("created_at")
+    if created_at:
+        return created_at
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def _conversation_to_text(history: list[dict]) -> str:
+    """Serialize full conversation history for logging."""
+    if not history:
+        return ""
+    lines = []
+    for item in history:
+        role = item.get("role", "unknown")
+        content = item.get("content", "")
+        lines.append(f"{role}: {content}")
+    return "\n".join(lines)
+
+def _summarize_for_handover(state: State) -> str:
+    """Generate a concise handover summary for human agents."""
+    history_text = _conversation_to_text(state.get("history") or [])
+    if not history_text:
+        query = state.get("query") or ""
+        history_text = f"user: {query}" if query else ""
+    system_prompt = (
+        "You are an Escalation Manager Agent. Summarize the ticket for human handover. "
+        "Return 2-3 concise sentences in plain text, with no headings or bullet points."
+    )
+    user_prompt = (
+        f"Ticket type: {state.get('ticket_type') or 'Unknown'}\n"
+        f"Conversation:\n{history_text}"
+    )
+    try:
+        summary = llm_chat(system_prompt, user_prompt, max_tokens=120).strip()
+        return summary or "Summary unavailable."
+    except Exception:
+        return "Summary unavailable due to LLM error."
+
+def _get_escalation_log_path() -> str:
+    """Return the absolute path for the escalation handover log."""
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(base_dir)
+    return os.path.join(root_dir, ESCALATION_LOG_FILENAME)
+
+def _log_escalation(state: State) -> list[str]:
+    """Append an escalation handover row to the Excel log."""
+    events = list(state.get("events") or [])
+    try:
+        created_at = state.get("created_at") or _ensure_created_at(state)
+        try:
+            created_dt = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            created_dt = datetime.now()
+        date_id = created_dt.strftime("%Y-%m-%d")
+        time_id = created_dt.strftime("%H:%M:%S")
+        ticket_type = state.get("ticket_type") or "Unknown"
+        conversation = _conversation_to_text(state.get("history") or [])
+        summary = _summarize_for_handover(state)
+
+        row = {
+            "Date ID": date_id,
+            "Time ID": time_id,
+            "Ticket Type": ticket_type,
+            "Conversation": conversation,
+            "Summary": summary,
+        }
+        path = _get_escalation_log_path()
+        if os.path.exists(path):
+            try:
+                existing = pd.read_excel(path)
+            except Exception:
+                existing = pd.DataFrame()
+        else:
+            existing = pd.DataFrame()
+        updated = pd.concat([existing, pd.DataFrame([row])], ignore_index=True)
+        updated.to_excel(path, index=False)
+        events.append(f"escalation_log -> saved ({os.path.basename(path)})")
+    except Exception as exc:
+        events.append(f"escalation_log -> failed ({exc})")
+    return events
+
 
 def validate_input(state: State) -> dict:
     """Validate user input length and characters (<=200, ASCII letters/numbers/punctuation/spaces)."""
@@ -169,7 +254,8 @@ def validate_input(state: State) -> dict:
         }
 
     events = _append_event({"events": events}, "validate_input -> ok")
-    return {"input_valid": True, "events": events}
+    created_at = state.get("created_at") or _ensure_created_at(state)
+    return {"input_valid": True, "events": events, "created_at": created_at}
 
 
 def detect_noise(state: State) -> dict:
@@ -233,6 +319,52 @@ def detect_human_request(state: State) -> dict:
     return {"escalated": False, "events": events}
 
 
+def detect_negative_turn(state: State) -> dict:
+    """From the second turn onward, detect Negative sentiment and escalate immediately."""
+    events = _append_event(state, "detect_negative -> start")
+    turn = int(state.get("turn") or 1)
+    if turn < 2:
+        events = _append_event({"events": events}, "detect_negative -> skip (turn<2)")
+        return {"escalated": False, "events": events}
+
+    history_text = _format_history(state.get("history") or [])
+    history_block = f"Conversation so far (last turns):\n{history_text}\n\n" if history_text else ""
+    system_prompt = (
+        "You are a sentiment classifier. "
+        "If the user's message is Negative, answer exactly: Negative. "
+        "Otherwise answer: Non-Negative."
+    )
+    user_prompt = (
+        f"{history_block}"
+        f"Current user message:\n{state.get('query')}"
+    )
+
+    verdict = "non-negative"
+    try:
+        verdict = llm_chat(system_prompt, user_prompt, max_tokens=4).strip().lower()
+    except Exception as exc:
+        events = _append_event({"events": events}, f"detect_negative -> assume non-negative (llm error: {exc})")
+
+    if verdict == "negative":
+        history = list(state.get("history") or [])
+        history.append({"role": "user", "content": state.get("query", "")})
+        reasons = _append_reason(state, "negative_sentiment")
+        events = _append_event({"events": events}, "detect_negative -> escalate")
+        return {
+            "escalated": True,
+            "final_action": "ESCALATE",
+            "status": "ESCALATED",
+            "events": events,
+            "history": history,
+            "escalation_reason": reasons,
+            "sentiment": "Negative",
+            "pending_question": "",
+        }
+
+    events = _append_event({"events": events}, "detect_negative -> non-negative")
+    return {"escalated": False, "events": events}
+
+
 def route_after_decision(state: State) -> str:
     """Router: after the decision node, choose the next step."""
     return "escalate" if state.get("escalated") else "handle_response"
@@ -242,15 +374,21 @@ def route_after_validation(state: State) -> str:
     """Router: after validation, either proceed or stop."""
     if not state.get("input_valid"):
         return "end"
-    # If we are waiting for a yes/no or follow-up, consume it first; otherwise start a fresh turn.
-    if state.get("pending_question"):
-        return "check_followup"
-    return "detect_human_request"
+    return "detect_negative"
 
 
 def route_after_human_request(state: State) -> str:
     """Router: after explicit human request detection."""
     return "escalate" if state.get("escalated") else "categorize"
+
+
+def route_after_negative(state: State) -> str:
+    """Router: after negative detection, route to follow-up or continue."""
+    if state.get("escalated"):
+        return "escalate"
+    if state.get("pending_question"):
+        return "check_followup"
+    return "detect_human_request"
 
 
 def route_after_noise_check(state: State) -> str:
@@ -349,6 +487,9 @@ def check_followup(state: State) -> dict:
             history.append({"role": "assistant", "content": response})
             events = _append_event({"events": events}, "check_followup -> user requested escalation")
             reasons = _append_reason(state, "negative_feedback")
+            log_state = dict(state)
+            log_state.update({"history": history, "events": events})
+            events = _log_escalation(log_state)
             return {
                 "input_continue": False,
                 "response": response,
@@ -378,24 +519,6 @@ def check_followup(state: State) -> dict:
                 "pending_question": "",
                 "resolution_no_count": resolution_no_count,
             }
-
-    # Starting a new ticket
-    if pending == "new_request":
-        events = _append_event({"events": events}, "check_followup -> start new ticket")
-        restart_to_validate = True
-        return {
-            "input_continue": True,
-            "events": events,
-            "pending_question": "",
-            "resolution_no_count": 0,
-            "escalated": False,
-            "status": "NEW",
-            "final_action": "AUTO_REPLY",
-            "turn": 0,
-            "history": [],
-            "escalation_reason": [],
-            "restart_to_validate": True,
-        }
 
     # Detect negative sentiment (complaint/insult/anger/refusal); if so, escalate.
     if turn < 2:
@@ -431,6 +554,9 @@ def check_followup(state: State) -> dict:
         history.append({"role": "assistant", "content": response})
         events = _append_event({"events": events}, "check_followup -> negative detected")
         reasons = _append_reason(state, "negative_feedback")
+        log_state = dict(state)
+        log_state.update({"history": history, "events": events})
+        events = _log_escalation(log_state)
         return {
             "input_continue": False,
             "response": response,
@@ -682,6 +808,15 @@ def assess_billing_risk(state: State) -> dict:
         "explanation of charges",
         "why was i charged",
         "billing rules",
+        "payment method",
+        "payment methods",
+        "payment option",
+        "payment options",
+        "payment types",
+        "how to pay",
+        "pay with",
+        "accepted payment",
+        "accepted payments",
     ]
 
     risk_level = "High"
@@ -700,16 +835,12 @@ def assess_billing_risk(state: State) -> dict:
     # If High, short-circuit to escalation.
     if risk_level == "High":
         reasons = _append_reason(state, "billing_high_risk")
-        history = list(state.get("history") or [])
-        history.append({"role": "assistant", "content": ESCALATION_REPLY})
         return {
             "risk_level": risk_level,
             "events": events,
             "escalated": True,
             "final_action": "ESCALATE",
             "status": "ESCALATED",
-            "response": ESCALATION_REPLY,
-            "history": history,
             "pending_question": "",
             "escalation_reason": reasons,
         }
@@ -989,6 +1120,9 @@ def escalate(state: State) -> dict:
     response = ESCALATION_REPLY
     history = list(state.get("history") or [])
     history.append({"role": "assistant", "content": response})
+    log_state = dict(state)
+    log_state.update({"history": history, "events": events})
+    events = _log_escalation(log_state)
     return {
         "response": response,
         "escalated": True,
@@ -1008,6 +1142,7 @@ workflow = StateGraph(State)
 workflow.add_node("greet", greet)
 workflow.add_node("validate_input", validate_input)
 workflow.add_node("check_followup", check_followup)
+workflow.add_node("detect_negative", detect_negative_turn)
 workflow.add_node("detect_human_request", detect_human_request)
 workflow.add_node("categorize", categorize)
 workflow.add_node("assess_billing_risk", assess_billing_risk)
@@ -1023,9 +1158,17 @@ workflow.add_conditional_edges(
     "validate_input",
     route_after_validation,
     {
-        "detect_human_request": "detect_human_request",
-        "check_followup": "check_followup",
+        "detect_negative": "detect_negative",
         "end": END,
+    },
+)
+workflow.add_conditional_edges(
+    "detect_negative",
+    route_after_negative,
+    {
+        "escalate": "escalate",
+        "check_followup": "check_followup",
+        "detect_human_request": "detect_human_request",
     },
 )
 workflow.add_conditional_edges(
