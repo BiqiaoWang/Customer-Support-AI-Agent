@@ -5,38 +5,8 @@ import os
 import string
 from groq import Groq, APIStatusError
 
-
-# ==== 新增：RAG / Qdrant + Azure Embeddings 配置 ====
-# 说明：这些配置只用于“查询阶段”把用户 query 变成向量，并连接到
-#       你已经在云端 Qdrant 上建好的 support_kb_collection。
-#       不会重新建库，也不会重算文档向量。
-
+from qdrant_client import QdrantClient, models
 from langchain_openai import AzureOpenAIEmbeddings
-from langchain_community.vectorstores import Qdrant
-from qdrant_client import QdrantClient
-
-QDRANT_URL = (
-    "https://935b80de-2d8b-4e02-930b-7c2c068dcb00.us-east4-0.gcp.cloud.qdrant.io:6333"
-)
-# 从环境变量读取 Qdrant API Key，避免写死在代码里
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = "support_kb_collection"
-
-# Azure OpenAI Embedding 配置，和建库脚本保持一致
-AZURE_OPENAI_ENDPOINT = os.getenv(
-    "AZURE_OPENAI_ENDPOINT",
-    "https://student-openai-uc.openai.azure.com/",
-)
-AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
-AZURE_OPENAI_API_VERSION = os.getenv(
-    "AZURE_OPENAI_API_VERSION",
-    "2024-02-01",
-)
-AZURE_OPENAI_EMBED_DEPLOYMENT = os.getenv(
-    "AZURE_OPENAI_EMBED_DEPLOYMENT",
-    "text-embedding-3-small",
-)
-# ==== RAG 配置结束 ====
 
 
 class State(TypedDict):
@@ -75,14 +45,39 @@ class State(TypedDict):
     escalated: bool           # whether this ticket should be escalated to a human
     response: str             # final reply to customer OR handover note
 
-    # RAG 检索得到的政策上下文（由 Qdrant 返回）
-    rag_context: str
+    # --- RAG runtime fields (new) ---
+    rag_context: str          # retrieved context text
+    rag_cards: list[str]      # optional: store card ids like AC-B2 for debugging/citation
+
 
 
 
 MODEL = "llama-3.1-8b-instant"
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+# --- RAG: Qdrant + Azure Embeddings 全局配置与客户端 ---
+
+# Qdrant 连接配置：指向你刚才建索引的那个 cluster / collection
+QDRANT_URL = "https://935b80de-2d8b-4e02-930b-7c2c068dcb00.us-east4-0.gcp.cloud.qdrant.io:6333"
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_COLLECTION = "support_kb_collection"
+
+# Azure OpenAI Embedding 配置：保证和建索引脚本用的是同一个 deployment
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://student-openai-uc.openai.azure.com/")
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
+AZURE_OPENAI_EMBED_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBED_DEPLOYMENT", "text-embedding-3-small")
+
+# RAG 用的全局客户端（一个进程里复用，避免每次都重新创建）
+qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+rag_embeddings = AzureOpenAIEmbeddings(
+    model=AZURE_OPENAI_EMBED_DEPLOYMENT,
+    azure_endpoint=AZURE_OPENAI_ENDPOINT,
+    api_key=AZURE_OPENAI_API_KEY,
+    openai_api_version=AZURE_OPENAI_API_VERSION,
+)
+
 
 FALLBACK_USER_REPLY = (
     "We've recorded your issue. Please share your phone or email, and a teammate "
@@ -157,95 +152,6 @@ def _has_heading(text: str) -> bool:
     keywords = ["handover", "note", "for human", "agent"]
     lowered = first_line.lower()
     return any(k in lowered for k in keywords)
-
-
-
-# ==== 新增：RAG 工具函数 ====
-
-def _build_embeddings() -> AzureOpenAIEmbeddings:
-    """
-    内部工具：构造 Azure OpenAI Embeddings 实例。
-    - 使用与你建库时相同的 text-embedding-3-small 部署
-    - 只在需要 RAG 时才会真正调用
-    """
-    if not AZURE_OPENAI_API_KEY:
-        raise RuntimeError("AZURE_OPENAI_API_KEY 未设置，无法执行 RAG 检索。")
-
-    return AzureOpenAIEmbeddings(
-        model=AZURE_OPENAI_EMBED_DEPLOYMENT,
-        azure_endpoint=AZURE_OPENAI_ENDPOINT,
-        api_key=AZURE_OPENAI_API_KEY,
-        openai_api_version=AZURE_OPENAI_API_VERSION,
-    )
-
-
-def retrieve_rag_context(state: State) -> dict:
-    """
-    真正执行 RAG 检索：
-    1. 从 state['query'] 取当前用户问题
-    2. 用 Azure Embeddings 把 query 转成向量
-    3. 在云端 Qdrant 的 support_kb_collection 中做相似度搜索
-    4. 把若干政策 chunk 拼接成长字符串，写回 state['rag_context']
-
-    注意：
-    - 这里只“读取” Qdrant，不会重建 collection，也不会重算文档向量。
-    - 每次调用只消耗一次 embedding 额度（按 query 长度计费）。
-    """
-    query = (state.get("query") or "").strip()
-    if not query:
-        return {"rag_context": ""}
-
-    if not QDRANT_API_KEY:
-        # 未配置 Qdrant Key 时，直接跳过 RAG，保证流程不断
-        return {"rag_context": ""}
-
-    try:
-        embeddings = _build_embeddings()
-    except Exception:
-        return {"rag_context": ""}
-
-    # 连接云端 Qdrant（只读）
-    client = QdrantClient(
-        url=QDRANT_URL,
-        api_key=QDRANT_API_KEY,
-    )
-
-    # 用 LangChain 封装成向量库 + retriever
-    vector_store = Qdrant(
-        client=client,
-        collection_name=QDRANT_COLLECTION,
-        embeddings=embeddings,
-    )
-    retriever = vector_store.as_retriever(search_kwargs={"k": 4})
-
-    try:
-        docs = retriever.get_relevant_documents(query)
-    except Exception:
-        return {"rag_context": ""}
-
-    rag_context = "\n\n---\n\n".join(doc.page_content for doc in docs)
-    return {"rag_context": rag_context}
-
-
-def maybe_retrieve_rag_context(state: State) -> dict:
-    """
-    薄封装：控制“什么时候跑 RAG”。
-    - 只在新工单（status == 'NEW'）且当前轮次 turn <= 1 时调用 retrieve_rag_context
-    - 其他情况保持原有 rag_context（通常为空）
-    这样：
-    - 每个新 ticket 的首轮回复都会用政策知识库
-    - 后续追问 / yes/no / 升级逻辑不受影响
-    """
-    status = state.get("status") or "NEW"
-    turn = int(state.get("turn") or 0)
-
-    if status == "NEW":
-        return retrieve_rag_context(state)
-
-    return {"rag_context": state.get("rag_context") or ""}
-
-# ==== RAG 工具函数结束 ====
-
 
 
 def validate_input(state: State) -> dict:
@@ -591,22 +497,15 @@ def route_after_followup(state: State) -> str:
 
 
 def route_after_categorize(state: State) -> str:
-    ticket_type = (state.get("ticket_type") or "").lower()
-    # Billing and Payments 先走风控
-    if ticket_type == "billing and payments":
+    """Router: after categorize, decide next step (no sentiment in first round)."""
+    if (state.get("ticket_type") or "").lower() == "billing and payments":
         return "assess_billing_risk"
-    # 其他类型：首轮一律先走 RAG
-    return "maybe_retrieve_rag_context"
-
+    return "retrieve_rag_context"
 
 
 def route_after_billing_risk(state: State) -> str:
-    # 高风险直接升级，低风险才继续首轮自动回复
-    if state.get("escalated"):
-        return "escalate"
-    # 低风险 Billing 首轮也要先走 RAG
-    return "maybe_retrieve_rag_context"
-
+    """Router: after billing risk, escalate if high, else continue."""
+    return "escalate" if state.get("escalated") else "retrieve_rag_context"
 
 
 def greet(state: State) -> dict:
@@ -888,10 +787,59 @@ def analyze_sentiment(state: State) -> dict:
     return {"sentiment": sentiment, "events": events}
 
 
+
+
+
 # 3. Initial Reply Agent (RAG placeholder)
+
+
+def retrieve_rag_context(state: State) -> dict:
+    """Retrieve top-K KB chunks from Qdrant and write into rag_context."""
+    query = (state.get("query") or "").strip()
+    events = _append_event(state, "retrieve_rag_context -> start")
+
+    if not query:
+        events = _append_event({"events": events}, "retrieve_rag_context -> empty query")
+        return {"rag_context": "", "rag_cards": [], "events": events}
+
+    try:
+        vec = rag_embeddings.embed_query(query)
+        hits = qdrant_client.search(
+            collection_name=QDRANT_COLLECTION,
+            query_vector=vec,
+            limit=5,
+            with_payload=True,
+        )
+    except Exception as exc:
+        events = _append_event({"events": events}, f"retrieve_rag_context -> error ({exc})")
+        return {"rag_context": "", "rag_cards": [], "events": events}
+
+    cards: list[str] = []
+    chunks: list[str] = []
+    for h in hits:
+        payload = h.payload or {}
+        text = payload.get("text", "")   # Qdrant payload field: text
+        p = payload.get("p", "")
+        v = payload.get("v", "")
+        c = payload.get("c", "")
+
+        if c:
+            cards.append(c)
+        if text:
+            header = f"[{c}] ({p} {v})".strip()
+            chunks.append(f"{header}\n{text}".strip())
+
+    rag_context = "\n\n---\n\n".join(chunks)
+    events = _append_event({"events": events}, f"retrieve_rag_context -> {len(chunks)} chunks")
+
+    return {"rag_context": rag_context, "rag_cards": cards, "events": events}
+
+
 def generate_first_round_reply(state: State) -> dict:
     """Generate the first automatic reply.
 
+    IMPORTANT: RAG retrieval is not implemented yet. This slot handles the first
+    model reply for specific ticket types, and keeps a placeholder when we skip.
     """
 
     ticket_type = (state.get("ticket_type") or "").lower()
@@ -905,15 +853,8 @@ def generate_first_round_reply(state: State) -> dict:
 
     history_text = _format_history(state.get("history") or [])
     history_block = f"Conversation so far (last turns):\n{history_text}\n\n" if history_text else ""
-        # ===== 使用 RAG：这里读取上一步从 Qdrant 检索到的政策上下文 =====
     rag_context = state.get("rag_context") or ""
-    context_block = (
-        f"RAG context (use this first):\n{rag_context}\n\n"
-        if rag_context
-        else ""
-    )
-    # =================================================================
-
+    context_block = f"RAG context (use this first):\n{rag_context}\n\n" if rag_context else ""
     user_prompt = (
         f"{history_block}"
         f"{context_block}"
@@ -923,7 +864,7 @@ def generate_first_round_reply(state: State) -> dict:
         "clarifying question. Keep under 120 words."
     )
     system_prompt = (
-        "You are a customer support assistant. You have to use the RAG context as the primary source if it is provided. "
+        "You are a customer support assistant. If RAG context is provided, use it as the primary source. "
         "If no relevant context is present, answer from your own knowledge but stay accurate, specific, and respectful. "
         "Do not promise refunds, policy exceptions, or irreversible actions. "
         "Keep the tone helpful and concise."
@@ -1155,11 +1096,8 @@ workflow.add_node("decide_escalation", decide_escalation)
 workflow.add_node("handle_response", handle_response)
 workflow.add_node("escalate", escalate)
 
-# ==== 新增：RAG 检索节点 ====
-# 说明：该节点只根据当前 state 决定要不要调用 Qdrant，
-#       并把 rag_context 写回 state。
-workflow.add_node("maybe_retrieve_rag_context", maybe_retrieve_rag_context)
-# =================================
+workflow.add_node("retrieve_rag_context", retrieve_rag_context)
+
 
 # Stage 1: greeting + validation + noise check + understanding + (placeholder) initial reply
 workflow.add_edge("greet", "validate_input")
@@ -1180,33 +1118,22 @@ workflow.add_conditional_edges(
         "categorize": "categorize",
     },
 )
-
 workflow.add_conditional_edges(
     "categorize",
     route_after_categorize,
     {
         "assess_billing_risk": "assess_billing_risk",
-        # 对于非 Billing 场景，分类后先进入 RAG 节点，再生成首轮回复
-        "maybe_retrieve_rag_context": "maybe_retrieve_rag_context",
+        "retrieve_rag_context": "retrieve_rag_context",
     },
 )
-
 workflow.add_conditional_edges(
     "assess_billing_risk",
     route_after_billing_risk,
     {
         "escalate": "escalate",
-        # Billing 低风险场景，也先走 RAG 再生成首轮回复
-        "maybe_retrieve_rag_context": "maybe_retrieve_rag_context",
+        "retrieve_rag_context": "retrieve_rag_context",
     },
 )
-
-# 新增：RAG 节点结束后，一律进入 generate_first_round_reply
-workflow.add_edge("maybe_retrieve_rag_context", "generate_first_round_reply")
-
-
-
-
 workflow.add_conditional_edges(
     "check_followup",
     route_after_followup,
@@ -1226,6 +1153,9 @@ workflow.add_conditional_edges(
         "handle_response": "handle_response",
     },
 )
+
+workflow.add_edge("retrieve_rag_context", "generate_first_round_reply")
+
 
 workflow.add_edge("handle_response", END)
 workflow.add_edge("escalate", END)
