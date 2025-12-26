@@ -804,12 +804,15 @@ def retrieve_rag_context(state: State) -> dict:
 
     try:
         vec = rag_embeddings.embed_query(query)
-        hits = qdrant_client.search(
+        res = qdrant_client.query_points(
             collection_name=QDRANT_COLLECTION,
-            query_vector=vec,
+            query=vec,
             limit=5,
             with_payload=True,
         )
+
+        hits = res.points if hasattr(res, "points") else res  # 兼容不同返回结构
+
     except Exception as exc:
         events = _append_event({"events": events}, f"retrieve_rag_context -> error ({exc})")
         return {"rag_context": "", "rag_cards": [], "events": events}
