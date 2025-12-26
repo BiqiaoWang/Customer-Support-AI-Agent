@@ -125,6 +125,29 @@ def _has_heading(text: str) -> bool:
     lowered = first_line.lower()
     return any(k in lowered for k in keywords)
 
+
+def _classify_sentiment(system_prompt: str, user_prompt: str, max_attempts: int = 5, event_label: str = "sentiment") -> tuple[str, list[str], bool]:
+    """Return Negative/Non-Negative with retries when output is invalid."""
+    allowed = {"negative": "Negative", "non-negative": "Non-Negative"}
+    events: list[str] = []
+    had_error = False
+    for attempt in range(1, max_attempts + 1):
+        raw = ""
+        try:
+            raw = llm_chat(system_prompt, user_prompt, max_tokens=4).strip()
+        except Exception as exc:
+            had_error = True
+            events.append(f"{event_label} -> llm error (attempt {attempt}: {exc})")
+            continue
+        normalized = raw.lower()
+        if normalized in allowed:
+            events.append(f"{event_label} -> {allowed[normalized]} (attempt {attempt})")
+            return allowed[normalized], events, had_error
+        events.append(f"{event_label} -> retry (invalid: {raw}, attempt {attempt})")
+    events.append(f"{event_label} -> fallback Non-Negative")
+    return "Non-Negative", events, had_error
+
+
 def _ensure_created_at(state: State) -> str:
     """Return created_at timestamp for the first valid user message."""
     created_at = state.get("created_at")
@@ -339,13 +362,16 @@ def detect_negative_turn(state: State) -> dict:
         f"Current user message:\n{state.get('query')}"
     )
 
-    verdict = "non-negative"
-    try:
-        verdict = llm_chat(system_prompt, user_prompt, max_tokens=4).strip().lower()
-    except Exception as exc:
-        events = _append_event({"events": events}, f"detect_negative -> assume non-negative (llm error: {exc})")
+    sentiment, attempt_events, _ = _classify_sentiment(
+        system_prompt,
+        user_prompt,
+        max_attempts=10,
+        event_label="detect_negative",
+    )
+    for entry in attempt_events:
+        events = _append_event({"events": events}, entry)
 
-    if verdict == "negative":
+    if sentiment == "Negative":
         history = list(state.get("history") or [])
         history.append({"role": "user", "content": state.get("query", "")})
         reasons = _append_reason(state, "negative_sentiment")
@@ -520,58 +546,7 @@ def check_followup(state: State) -> dict:
                 "resolution_no_count": resolution_no_count,
             }
 
-    # Detect negative sentiment (complaint/insult/anger/refusal); if so, escalate.
-    if turn < 2:
-        events = _append_event({"events": events}, "check_followup -> skip complaint check (turn<2)")
-        return {
-            "input_continue": True,
-            "events": events,
-            "pending_question": pending,
-            "resolution_no_count": resolution_no_count,
-            "restart_to_validate": restart_to_validate,
-        }
-
-    history_text = _format_history(history)
-    history_block = f"Conversation so far (last turns):\n{history_text}\n\n" if history_text else ""
-    system_prompt = (
-        "You are a classifier. If the user's message shows complaints, insults, anger, "
-        "or refusal to continue, answer exactly: Negative. Otherwise answer: Non-Negative."
-    )
-    user_prompt = (
-        f"{history_block}"
-        f"Current user message:\n{query}"
-    )
-
-    try:
-        verdict = llm_chat(system_prompt, user_prompt, max_tokens=4).strip().lower()
-    except Exception as exc:
-        verdict = "non-negative"
-        events = _append_event({"events": events}, f"check_followup -> assume non-negative (llm error: {exc})")
-
-    if verdict == "negative":
-        response = ESCALATION_REPLY
-        history.append({"role": "user", "content": query})
-        history.append({"role": "assistant", "content": response})
-        events = _append_event({"events": events}, "check_followup -> negative detected")
-        reasons = _append_reason(state, "negative_feedback")
-        log_state = dict(state)
-        log_state.update({"history": history, "events": events})
-        events = _log_escalation(log_state)
-        return {
-            "input_continue": False,
-            "response": response,
-            "status": "ESCALATED",
-            "final_action": "ESCALATE",
-            "escalated": True,
-            "events": events,
-            "history": history,
-            "sentiment": "Negative",
-            "escalation_reason": reasons,
-            "pending_question": "",
-            "resolution_no_count": resolution_no_count,
-        }
-
-    events = _append_event({"events": events}, "check_followup -> non-negative")
+    events = _append_event({"events": events}, "check_followup -> continue")
     return {
         "input_continue": True,
         "events": events,
@@ -865,24 +840,18 @@ def analyze_sentiment(state: State) -> dict:
         "Only answer with one word: Negative or Non-Negative."
     )
 
-    try:
-        sentiment_raw = llm_chat(system_prompt, user_prompt).strip()
-        sentiment_norm = sentiment_raw.lower()
-        allowed = {"negative", "non-negative"}
-        if sentiment_norm not in allowed:
-            sentiment = "Non-Negative"
-            events = _append_event(
-                state, f"sentiment -> Non-Negative (fallback from {sentiment_raw})"
-            )
-        else:
-            sentiment = "Negative" if sentiment_norm == "negative" else "Non-Negative"
-            events = _append_event(state, f"sentiment -> {sentiment}")
-    except Exception as exc:
-        sentiment = "Non-Negative"
+    sentiment, attempt_events, had_error = _classify_sentiment(
+        system_prompt,
+        user_prompt,
+        max_attempts=10,
+        event_label="sentiment",
+    )
+    events = list(state.get("events") or [])
+    for entry in attempt_events:
+        events = _append_event({"events": events}, entry)
+    if had_error:
         reasons = _append_reason(state, "llm_failure")
-        events = _append_event(state, f"sentiment -> Non-Negative (llm error: {exc})")
         return {"sentiment": sentiment, "events": events, "escalation_reason": reasons}
-
     return {"sentiment": sentiment, "events": events}
 
 
