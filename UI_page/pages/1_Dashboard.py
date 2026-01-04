@@ -101,12 +101,17 @@ escalation_rate = (
 )
 auto_resolved_rate = 1 - escalation_rate if not df_filtered.empty else 0.0
 
+latest_day = df_filtered["Created Date"].max()
+
 with kpi1:
-    st.metric("New tickets in range", new_in_range)
+    st.metric(f"New tickets ({latest_day:%m-%d})", new_in_range)
 with kpi2:
-    st.metric("Auto‑resolution rate", f"{auto_resolved_rate*100:.0f}%")
+    st.metric(f"Auto‑resolution rate ({start_date:%m-%d}→{end_date:%m-%d})",
+              f"{auto_resolved_rate*100:.0f}%")
 with kpi3:
-    st.metric("Escalation rate", f"{escalation_rate*100:.0f}%")
+    st.metric(f"Escalation rate ({start_date:%m-%d}→{end_date:%m-%d})",
+              f"{escalation_rate*100:.0f}%")
+
 
 # 5. Charts
 st.subheader("Visual Analytics")
@@ -152,14 +157,16 @@ with left:
         n_days = sentiment_full["Created Date"].nunique()
         bar_width = 40 if n_days <= 7 else 20
 
+        tick_values = pd.to_datetime(full_dates)
+
         chart1 = (
             alt.Chart(sentiment_full)
             .mark_bar(size=bar_width)
             .encode(
                 x=alt.X(
-                    "Created Date Str:N",   # 最近 7 天每天一格
+                    "Created Date:T",
                     title="Date (last 7 days)",
-                    axis=alt.Axis(labelColor="#4a4a4a", titleColor="#4a4a4a"),
+                    axis=alt.Axis(format="%m-%d", values=tick_values, labelColor="#4a4a4a", titleColor="#4a4a4a"),
                 ),
                 y=alt.Y(
                     "count:Q",
@@ -179,7 +186,11 @@ with left:
                         titleColor="#4a4a4a",
                     ),
                 ),
-                tooltip=["Created Date Str", "Sentiment", "count"],
+                tooltip=[
+                  alt.Tooltip("Created Date:T", title="Date", format="%m-%d"),
+                  alt.Tooltip("Sentiment:N"),
+                  alt.Tooltip("count:Q"),
+                ],
             )
             .properties(height=300)
             .configure_axis(gridColor="#e3e6f0")
