@@ -15,7 +15,7 @@ N = len(df)
 target_n = 500
 
 gold_list = []
-selected_ids = []   # 记录选中的 ticket_id，避免后续定位错误
+selected_ids = []   
 
 for ttype, group in df.groupby('ticket_type'):
     # Proportion of this ticket type in the full dataset
