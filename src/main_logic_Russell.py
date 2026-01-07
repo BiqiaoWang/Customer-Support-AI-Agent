@@ -2,6 +2,7 @@ from typing import TypedDict
 from langgraph.graph import StateGraph, END
 
 import os
+import re
 import string
 from datetime import datetime
 import pandas as pd
@@ -126,6 +127,67 @@ def _has_heading(text: str) -> bool:
     return any(k in lowered for k in keywords)
 
 
+def _clean_llm_reply(text: str) -> str:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return ""
+
+    cleaned = re.sub(r"^(answer|response|reply)\s*:\s*", "", cleaned, flags=re.IGNORECASE)
+    sentences = re.split(r"(?<=[.!?])\s+", cleaned)
+    filtered = []
+    for sentence in sentences:
+        s = sentence.strip()
+        if not s:
+            continue
+        if "?" in s:
+            continue
+        lower = s.lower()
+        if any(
+            phrase in lower
+            for phrase in (
+                "let me know",
+                "feel free",
+                "if you need",
+                "if you have any",
+                "hope this helps",
+                "happy to help",
+                "glad to help",
+                "reach out",
+            )
+        ):
+            continue
+        filtered.append(s)
+    cleaned = " ".join(filtered).strip()
+    if not cleaned:
+        return ""
+
+    fillers = (
+        "sure,",
+        "sure.",
+        "sure!",
+        "certainly,",
+        "certainly.",
+        "of course,",
+        "of course.",
+        "absolutely,",
+        "absolutely.",
+        "no problem,",
+        "no problem.",
+        "hi,",
+        "hello,",
+        "thanks,",
+        "thanks.",
+        "thank you,",
+        "thank you.",
+    )
+    lowered = cleaned.lower()
+    for prefix in fillers:
+        if lowered.startswith(prefix):
+            cleaned = cleaned[len(prefix):].lstrip()
+            break
+    return cleaned
+
+
 def _classify_sentiment(system_prompt: str, user_prompt: str, max_attempts: int = 5, event_label: str = "sentiment") -> tuple[str, list[str], bool]:
     """Return Negative/Non-Negative with retries when output is invalid."""
     allowed = {"negative": "Negative", "non-negative": "Non-Negative"}
@@ -223,8 +285,25 @@ def _log_escalation(state: State) -> list[str]:
         else:
             existing = pd.DataFrame()
         updated = pd.concat([existing, pd.DataFrame([row])], ignore_index=True)
-        updated.to_excel(path, index=False)
-        events.append(f"escalation_log -> saved ({os.path.basename(path)})")
+        try:
+            updated.to_excel(path, index=False)
+            events.append(f"escalation_log -> saved ({os.path.basename(path)})")
+        except Exception as exc:
+            csv_path = os.path.splitext(path)[0] + ".csv"
+            try:
+                if os.path.exists(csv_path):
+                    try:
+                        existing_csv = pd.read_csv(csv_path)
+                    except Exception:
+                        existing_csv = pd.DataFrame()
+                    updated_csv = pd.concat([existing_csv, pd.DataFrame([row])], ignore_index=True)
+                else:
+                    updated_csv = pd.concat([existing, pd.DataFrame([row])], ignore_index=True)
+                updated_csv.to_csv(csv_path, index=False)
+                events.append(f"escalation_log -> saved ({os.path.basename(csv_path)})")
+                events.append(f"escalation_log -> excel failed ({exc})")
+            except Exception as csv_exc:
+                events.append(f"escalation_log -> failed ({csv_exc})")
     except Exception as exc:
         events.append(f"escalation_log -> failed ({exc})")
     return events
@@ -345,6 +424,33 @@ def detect_human_request(state: State) -> dict:
 def detect_negative_turn(state: State) -> dict:
     """From the second turn onward, detect Negative sentiment and escalate immediately."""
     events = _append_event(state, "detect_negative -> start")
+    pending = state.get("pending_question") or ""
+    if pending:
+        events = _append_event({"events": events}, f"detect_negative -> skip (pending {pending})")
+        return {"escalated": False, "events": events}
+
+    query = (state.get("query") or "").strip()
+    lowered = query.lower()
+    no_patterns = [
+        "no",
+        "nope",
+        "nah",
+        "not yet",
+        "not really",
+        "still not",
+        "still broken",
+        "not fixed",
+        "no it is not",
+        "it is not fixed",
+    ]
+
+    def _matches(patterns: list[str]) -> bool:
+        return any(lowered == p or lowered.startswith(p + " ") for p in patterns)
+
+    if _matches(no_patterns):
+        events = _append_event({"events": events}, "detect_negative -> skip (user said no)")
+        return {"escalated": False, "events": events}
+
     turn = int(state.get("turn") or 1)
     if turn < 2:
         events = _append_event({"events": events}, "detect_negative -> skip (turn<2)")
@@ -400,12 +506,16 @@ def route_after_validation(state: State) -> str:
     """Router: after validation, either proceed or stop."""
     if not state.get("input_valid"):
         return "end"
-    return "detect_negative"
+    return "detect_human_request"
 
 
 def route_after_human_request(state: State) -> str:
     """Router: after explicit human request detection."""
-    return "escalate" if state.get("escalated") else "categorize"
+    if state.get("escalated"):
+        return "escalate"
+    if state.get("pending_question"):
+        return "check_followup"
+    return "detect_negative"
 
 
 def route_after_negative(state: State) -> str:
@@ -414,7 +524,7 @@ def route_after_negative(state: State) -> str:
         return "escalate"
     if state.get("pending_question"):
         return "check_followup"
-    return "detect_human_request"
+    return "categorize"
 
 
 def route_after_noise_check(state: State) -> str:
@@ -881,14 +991,16 @@ def generate_first_round_reply(state: State) -> dict:
         f"{context_block}"
         f"Ticket type: {state.get('ticket_type')}\n"
         f"Customer query:\n{state.get('query', '')}\n\n"
-        "Provide a concise first reply. If key details are missing, ask ONE clear "
-        "clarifying question. Keep under 120 words."
+        "Answer the user's question directly in 1-2 concise sentences. "
+        "Do not ask follow-up questions. Do not add greetings, apologies, or offers. "
+        "Keep under 120 words."
     )
     system_prompt = (
         "You are a customer support assistant. If RAG context is provided, use it as the primary source. "
         "If no relevant context is present, answer from your own knowledge but stay accurate, specific, and respectful. "
+        "Do not ask questions or add conversational filler. "
         "Do not promise refunds, policy exceptions, or irreversible actions. "
-        "Keep the tone helpful and concise."
+        "Keep the tone concise and direct."
     )
 
     initial_reply = state.get("initial_reply") or ""
@@ -911,6 +1023,15 @@ def generate_first_round_reply(state: State) -> dict:
 
     try:
         initial_reply = llm_chat(system_prompt, user_prompt, max_tokens=256)
+        cleaned_reply = _clean_llm_reply(initial_reply)
+        if cleaned_reply:
+            initial_reply = cleaned_reply
+        else:
+            initial_reply = FALLBACK_USER_REPLY
+            events = _append_event(
+                {"events": events},
+                "initial_reply -> cleaned empty (fallback)",
+            )
         events = _append_event(
             {"events": events},
             f"initial_reply -> generated ({state.get('ticket_type')})",
@@ -1127,7 +1248,7 @@ workflow.add_conditional_edges(
     "validate_input",
     route_after_validation,
     {
-        "detect_negative": "detect_negative",
+        "detect_human_request": "detect_human_request",
         "end": END,
     },
 )
@@ -1137,7 +1258,7 @@ workflow.add_conditional_edges(
     {
         "escalate": "escalate",
         "check_followup": "check_followup",
-        "detect_human_request": "detect_human_request",
+        "categorize": "categorize",
     },
 )
 workflow.add_conditional_edges(
@@ -1145,7 +1266,8 @@ workflow.add_conditional_edges(
     route_after_human_request,
     {
         "escalate": "escalate",
-        "categorize": "categorize",
+        "check_followup": "check_followup",
+        "detect_negative": "detect_negative",
     },
 )
 workflow.add_conditional_edges(
