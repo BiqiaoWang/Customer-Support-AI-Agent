@@ -50,15 +50,15 @@ class State(TypedDict):
     response: str             # final reply to customer OR handover note
 
     #  New  add
-    ragcontext: str               # retrieved KB context text
+    rag_context: str               # retrieved KB context text
     ragcards: list[str]           # optional: store policy card ids for citations/debug
 
 
 
 MODEL = "llama-3.1-8b-instant"
 
-# New add
-# ==== RAG runtime (Qdrant + Azure OpenAI Embeddings) ====
+
+# ==== RAG runtime (Qdrant + Azure OpenAI Embeddings) ==== # New add
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "supportkbcollection")
@@ -907,12 +907,12 @@ def retrieve_rag_context(state: State) -> dict:
 
     if not query:
         events.append("retrieve_rag_context - empty query")
-        return {"ragcontext": "", "ragcards": [], "events": events}
+        return {"rag_context": "", "ragcards": [], "events": events}
 
     try:
         vec = ragembeddings.embed_query(query)
         res = qdrantclient.query_points(
-            collection_name=QDRANTCOLLECTION,
+            collection_name=QDRANT_COLLECTION,
             query=vec,
             limit=5,
             with_payload=True,
@@ -920,7 +920,7 @@ def retrieve_rag_context(state: State) -> dict:
         hits = res.points if hasattr(res, "points") else res
     except Exception as exc:
         events.append(f"retrieve_rag_context - error {exc}")
-        return {"ragcontext": "", "ragcards": [], "events": events}
+        return {"rag_context": "", "ragcards": [], "events": events}
 
     cards = []
     chunks = []
@@ -937,9 +937,9 @@ def retrieve_rag_context(state: State) -> dict:
             header = f"[{c}] {p} {v}".strip()
             chunks.append(f"{header}\n{text}".strip())
 
-    ragcontext = "\n---\n".join(chunks).strip()
+    rag_context = "\n---\n".join(chunks).strip()
     events.append(f"retrieve_rag_context - len {len(chunks)} chunks")
-    return {"ragcontext": ragcontext, "ragcards": cards, "events": events}
+    return {"rag_context": rag_context, "ragcards": cards, "events": events}
 
 
 
