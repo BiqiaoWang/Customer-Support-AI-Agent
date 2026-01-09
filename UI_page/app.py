@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from src.main_logic import app, GREETING
+from src.main_logic_Russell import app, GREETING
 
 # ==== SQLite: 路径 & 工具函数 ====
 DB_PATH = ROOT / "tickets.db"
@@ -322,8 +322,6 @@ if status_flag in {"CLOSED", "ESCALATED"}:
 
     with st.expander("State (debug)"):
         st.json(state)
-    with st.expander("Tickets (debug)"):
-        st.dataframe(st.session_state.tickets, use_container_width=True)
     st.stop()
 
 # ==== 6. 非结束状态：正常对话 ====
@@ -440,5 +438,4 @@ if prompt_value:
 
 with st.expander("State (debug)"):
     st.json(st.session_state.state)
-with st.expander("Tickets (debug)"):
-    st.dataframe(st.session_state.tickets, use_container_width=True)
+

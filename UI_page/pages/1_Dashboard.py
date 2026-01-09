@@ -62,38 +62,13 @@ with col_to:
 mask = (df["Created Date"] >= start_date) & (df["Created Date"] <= end_date)
 df_filtered = df[mask].copy()
 
-# 3. Top 5 history table
-st.subheader("History Tickets")
-
-
-
-df_sorted = df_filtered.sort_values(
-    by=["Created Date", "ID"], ascending=[False, False]
-)
-
-# 只展示一个时间字段（这里保留 Created Time）
-cols_to_show = [
-    "ID",
-    "Created Time",
-    "Status",
-    "Type",
-    "Sentiment",
-    "Escalation Needed",
-]
-table_data = df_sorted[cols_to_show]
-
-# 高度固定，内容多了在表格内部滚动
-st.dataframe(table_data, use_container_width=True, height=220)
-
 
 # 4. KPIs
 st.subheader("Support Ticket Analytics")
-
 kpi1, kpi2, kpi3 = st.columns(3)
 
-new_in_range = len(
-    df_filtered[df_filtered["Created Date"] == df_filtered["Created Date"].max()]
-)
+total_tickets = len(df_filtered)
+
 escalation_rate = (
     (df_filtered["Escalation Needed"] == "Yes").mean()
     if not df_filtered.empty
@@ -101,16 +76,23 @@ escalation_rate = (
 )
 auto_resolved_rate = 1 - escalation_rate if not df_filtered.empty else 0.0
 
-latest_day = df_filtered["Created Date"].max()
-
 with kpi1:
-    st.metric(f"New tickets ({latest_day:%m-%d})", new_in_range)
+    st.metric(
+        f"Tickets ({start_date:%m-%d}→{end_date:%m-%d})",
+        total_tickets
+    )
 with kpi2:
-    st.metric(f"Auto‑resolution rate ({start_date:%m-%d}→{end_date:%m-%d})",
-              f"{auto_resolved_rate*100:.0f}%")
+    st.metric(
+        f"Auto‑resolution rate ({start_date:%m-%d}→{end_date:%m-%d})",
+        f"{auto_resolved_rate*100:.0f}%"
+    )
 with kpi3:
-    st.metric(f"Escalation rate ({start_date:%m-%d}→{end_date:%m-%d})",
-              f"{escalation_rate*100:.0f}%")
+    st.metric(
+        f"Escalation rate ({start_date:%m-%d}→{end_date:%m-%d})",
+        f"{escalation_rate*100:.0f}%"
+    )
+
+
 
 
 # 5. Charts
