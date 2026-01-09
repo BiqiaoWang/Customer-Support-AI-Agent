@@ -26,3 +26,5 @@ dependencies:
       - huggingface_hub
       - groq       
       - tqdm        
+      - langchain-openai
+      - qdrant-client
