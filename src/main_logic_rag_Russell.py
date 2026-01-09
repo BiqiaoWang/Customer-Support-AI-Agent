@@ -907,7 +907,7 @@ def analyze_sentiment(state: State) -> dict:
 
 def retrieve_rag_context(state: State) -> dict:
     # 关键：显式引用全局对象（避免作用域里找不到）
-    global ragembeddings, qdrantclient, QDRANTCOLLECTION
+    global rag_embeddings, qdrant_client, QDRANT_COLLECTION
 
     query = (state.get("query") or "").strip()
     events = list(state.get("events") or [])
@@ -918,33 +918,33 @@ def retrieve_rag_context(state: State) -> dict:
         return {"rag_context": "", "ragcards": [], "events": events}
 
     # 关键：初始化兜底（避免 name 'ragembeddings' is not defined）
-    if "ragembeddings" not in globals() or ragembeddings is None:
-      try:
-        events.append("retrieve_rag_context - init ragembeddings")
-        globals()["ragembeddings"] = AzureOpenAIEmbeddings(
-            model=AZUREOPENAIEMBED_DEPLOYMENT,   # 按你真实变量名改一下
-            azure_endpoint=AZUREOPENAI_ENDPOINT,
+    if "rag_embeddings" not in globals() or rag_embeddings is None:
+        try:
+          events.append("retrieve_rag_context - init rag_embeddings")
+          globals()["rag_embeddings"] = AzureOpenAIEmbeddings(
+            model=AZURE_OPENAI_EMBED_DEPLOYMENT,  
+            azure_endpoint=AZURE_OPENAI_ENDPOINT,
             api_key=AZUREOPENAI_API_KEY,
-            openai_api_version=AZUREOPENAI_API_VERSION,
+            openai_api_version=AZURE_OPENAI_API_VERSIONN,
         )
-    except Exception as exc:
-        events.append(f"retrieve_rag_context - error init_ragembeddings_failed: {exc}")
+        except Exception as exc:
+          events.append(f"retrieve_rag_context - error init_rag_embeddings_failed: {exc}")
+          return {"rag_context": "", "ragcards": [], "events": events}
+
+    if "qdrant_client" not in globals() or qdrant_client is None:
+        events.append("retrieve_rag_context - error qdrant_client_not_initialized")
         return {"rag_context": "", "ragcards": [], "events": events}
 
-    if "qdrantclient" not in globals() or qdrantclient is None:
-        events.append("retrieve_rag_context - error qdrantclient_not_initialized")
-        return {"rag_context": "", "ragcards": [], "events": events}
-
-    if "QDRANTCOLLECTION" not in globals() or not QDRANTCOLLECTION:
+    if "QDRANT_COLLECTION" not in globals() or not QDRANT_COLLECTION:
         events.append("retrieve_rag_context - error qdrant_collection_not_set")
         return {"rag_context": "", "ragcards": [], "events": events}
 
     try:
-        vec = ragembeddings.embed_query(query)
-        res = qdrantclient.query_points(
-            collection_name=QDRANTCOLLECTION,
+        vec = rag_embeddings.embed_query(query)
+        res = qdrant_client.query_points(
+            collection_name=QDRANT_COLLECTION,
             query=vec,
-            limit=5,
+            limit=2,
             with_payload=True,
         )
         hits = res.points if hasattr(res, "points") else res
