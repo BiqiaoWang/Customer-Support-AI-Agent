@@ -900,13 +900,13 @@ def analyze_sentiment(state: State) -> dict:
 
 # 3. Initial Reply Agent (RAG placeholder) 
 
-def retrieveragcontext(state: State) -> dict:
+def retrieve_rag_context(state: State) -> dict:
     query = (state.get("query") or "").strip()
     events = list(state.get("events") or [])
-    events.append("retrieveragcontext - start")
+    events.append("retrieve_rag_context - start")
 
     if not query:
-        events.append("retrieveragcontext - empty query")
+        events.append("retrieve_rag_context - empty query")
         return {"ragcontext": "", "ragcards": [], "events": events}
 
     try:
@@ -919,7 +919,7 @@ def retrieveragcontext(state: State) -> dict:
         )
         hits = res.points if hasattr(res, "points") else res
     except Exception as exc:
-        events.append(f"retrieveragcontext - error {exc}")
+        events.append(f"retrieve_rag_context - error {exc}")
         return {"ragcontext": "", "ragcards": [], "events": events}
 
     cards = []
@@ -938,7 +938,7 @@ def retrieveragcontext(state: State) -> dict:
             chunks.append(f"{header}\n{text}".strip())
 
     ragcontext = "\n---\n".join(chunks).strip()
-    events.append(f"retrieveragcontext - len {len(chunks)} chunks")
+    events.append(f"retrieve_rag_context - len {len(chunks)} chunks")
     return {"ragcontext": ragcontext, "ragcards": cards, "events": events}
 
 
