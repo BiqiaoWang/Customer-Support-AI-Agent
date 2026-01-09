@@ -906,6 +906,9 @@ def analyze_sentiment(state: State) -> dict:
 # 3. Initial Reply Agent (RAG placeholder) 
 
 def retrieve_rag_context(state: State) -> dict:
+    # 关键：显式引用全局对象（避免作用域里找不到）
+    global ragembeddings, qdrantclient, QDRANTCOLLECTION
+
     query = (state.get("query") or "").strip()
     events = list(state.get("events") or [])
     events.append("retrieve_rag_context - start")
@@ -914,10 +917,23 @@ def retrieve_rag_context(state: State) -> dict:
         events.append("retrieve_rag_context - empty query")
         return {"rag_context": "", "ragcards": [], "events": events}
 
+    # 关键：初始化兜底（避免 name 'ragembeddings' is not defined）
+    if "ragembeddings" not in globals() or ragembeddings is None:
+        events.append("retrieve_rag_context - error ragembeddings_not_initialized")
+        return {"rag_context": "", "ragcards": [], "events": events}
+
+    if "qdrantclient" not in globals() or qdrantclient is None:
+        events.append("retrieve_rag_context - error qdrantclient_not_initialized")
+        return {"rag_context": "", "ragcards": [], "events": events}
+
+    if "QDRANTCOLLECTION" not in globals() or not QDRANTCOLLECTION:
+        events.append("retrieve_rag_context - error qdrant_collection_not_set")
+        return {"rag_context": "", "ragcards": [], "events": events}
+
     try:
         vec = ragembeddings.embed_query(query)
         res = qdrantclient.query_points(
-            collection_name=QDRANT_COLLECTION,
+            collection_name=QDRANTCOLLECTION,
             query=vec,
             limit=5,
             with_payload=True,
@@ -926,6 +942,8 @@ def retrieve_rag_context(state: State) -> dict:
     except Exception as exc:
         events.append(f"retrieve_rag_context - error {exc}")
         return {"rag_context": "", "ragcards": [], "events": events}
+
+
 
     cards = []
     chunks = []
