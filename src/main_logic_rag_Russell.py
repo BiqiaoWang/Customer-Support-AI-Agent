@@ -333,6 +333,31 @@ def _clean_llm_reply(text: str) -> str:
     return cleaned
 
 
+def _normalize_yes_no(text: str) -> str:
+    normalized = (text or "").strip().lower()
+    if normalized == "yes":
+        return "yes"
+    if normalized == "no":
+        return "no"
+    return ""
+
+
+def _infer_pending_from_history(history: list[dict]) -> str:
+    """Infer pending yes/no question from the last assistant message."""
+    for item in reversed(history or []):
+        if item.get("role") != "assistant":
+            continue
+        content = (item.get("content") or "").strip().lower()
+        if not content:
+            continue
+        if "has your issue been resolved" in content:
+            return "resolution"
+        if "would you like us to escalate" in content or "escalate your issue" in content:
+            return "escalation"
+        break
+    return ""
+
+
 def _classify_sentiment(system_prompt: str, user_prompt: str, max_attempts: int = 5, event_label: str = "sentiment") -> tuple[str, list[str], bool]:
     """Return Negative/Non-Negative with retries when output is invalid."""
     allowed = {"negative": "Negative", "non-negative": "Non-Negative"}
@@ -420,6 +445,16 @@ def detect_noise(state: State) -> dict:
 
 def detect_human_request(state: State) -> dict:
     """Detect explicit requests for a human agent; escalate immediately if found."""
+    pending = state.get("pending_question") or ""
+    if pending:
+        events = _append_event(state, f"detect_human_request -> skip (pending {pending})")
+        return {"escalated": False, "events": events}
+
+    query = (state.get("query") or "").strip()
+    if query.lower() in {"yes", "no"}:
+        events = _append_event(state, "detect_human_request -> skip (yes/no)")
+        return {"escalated": False, "events": events}
+
     history_text = _format_history(state.get("history") or [])
     history_block = f"Conversation so far (last turns):\n{history_text}\n\n" if history_text else ""
 
@@ -430,7 +465,7 @@ def detect_human_request(state: State) -> dict:
     )
     user_prompt = (
         f"{history_block}"
-        f"Current user message:\n{state.get('query')}"
+        f"Current user message:\n{query}"
     )
 
     wants_human = False
@@ -442,7 +477,7 @@ def detect_human_request(state: State) -> dict:
         events = _append_event({"events": events}, f"detect_human_request -> skipped (llm error: {exc})")
 
     if not wants_human:
-        lowered = (state.get("query") or "").lower()
+        lowered = query.lower()
         keywords = [
             "human",
             "agent",
@@ -566,8 +601,14 @@ def route_after_human_request(state: State) -> str:
     """Router: after explicit human request detection."""
     if state.get("escalated"):
         return "escalate"
-    if state.get("pending_question"):
+    pending = state.get("pending_question") or ""
+    if pending:
         return "check_followup"
+    query = state.get("query") or ""
+    if _normalize_yes_no(query):
+        inferred = _infer_pending_from_history(state.get("history") or [])
+        if inferred:
+            return "check_followup"
     return "detect_negative"
 
 
@@ -575,8 +616,14 @@ def route_after_negative(state: State) -> str:
     """Router: after negative detection, route to follow-up or continue."""
     if state.get("escalated"):
         return "escalate"
-    if state.get("pending_question"):
+    pending = state.get("pending_question") or ""
+    if pending:
         return "check_followup"
+    query = state.get("query") or ""
+    if _normalize_yes_no(query):
+        inferred = _infer_pending_from_history(state.get("history") or [])
+        if inferred:
+            return "check_followup"
     return "categorize"
 
 
@@ -597,18 +644,15 @@ def check_followup(state: State) -> dict:
     resolution_no_count = int(state.get("resolution_no_count") or 0)
     restart_to_validate = False
     turn = int(state.get("turn") or 1)
-
-    def _normalize_yes_no(text: str) -> str:
-        normalized = text.strip().lower()
-        if normalized == "yes":
-            return "yes"
-        if normalized == "no":
-            return "no"
-        return ""
+    choice = _normalize_yes_no(query)
+    if not pending and choice:
+        inferred = _infer_pending_from_history(history)
+        if inferred:
+            pending = inferred
+            events = _append_event({"events": events}, f"check_followup -> inferred {pending} from history")
 
     # Pending resolution confirmation
     if pending == "resolution":
-        choice = _normalize_yes_no(query)
         if choice == "yes":
             response = "Great to hear it's resolved. We'll close this ticket."
             history.append({"role": "user", "content": query})
@@ -676,7 +720,6 @@ def check_followup(state: State) -> dict:
 
     # Pending escalation decision
     if pending == "escalation":
-        choice = _normalize_yes_no(query)
         if choice == "yes":
             response = ESCALATION_REPLY
             history.append({"role": "user", "content": query})
