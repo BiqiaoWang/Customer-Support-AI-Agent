@@ -77,3 +77,35 @@ else:
     with right:
         st.markdown("**Ticket notes**")
         st.info("Reserved for Owner / Tags / SLA / internal notes.")
+        status_value = str(row.get("Status", "")).upper()
+        is_escalated = status_value == "ESCALATED"
+        if is_escalated:
+            state_data = (details or {}).get("state", {})
+            ragcards = state_data.get("ragcards") or []
+            summary = (state_data.get("ticket_summary") or "").strip()
+            categories = state_data.get("escalation_categories") or []
+            priority = [
+                "user_confirmed_escalation",
+                "user_requested_human",
+                "negative_sentiment",
+                "billing_high_risk",
+                "sales_presales_sensitive",
+                "security_sensitive",
+                "low_confidence_ticket_type",
+                "unknown",
+            ]
+            reason = ""
+            for item in priority:
+                if item in categories:
+                    reason = item
+                    break
+            if not reason and categories:
+                reason = categories[0]
+            if not reason:
+                reason = "unknown"
+            cards_text = ", ".join(ragcards) if ragcards else "None"
+            summary_text = summary or "Not available."
+            st.markdown("**Escalation details**")
+            st.write("RAG Cards:", cards_text)
+            st.write("Ticket Summary:", summary_text)
+            st.write("Escalation Reason:", reason)

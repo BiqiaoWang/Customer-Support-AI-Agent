@@ -52,6 +52,8 @@ class State(TypedDict):
     #  New  add
     rag_context: str               # retrieved KB context text
     ragcards: list[str]           # optional: store policy card ids for citations/debug
+    ticket_summary: str           # escalated ticket summary for handover
+    escalation_categories: list[str]  # normalized escalation reasons (7 categories)
 
 
 
@@ -143,6 +145,117 @@ def _format_history(history: list[dict], max_items: int = 10) -> str:
     recent = history[-max_items:]
     return "\n".join(f"{item.get('role', 'unknown')}: {item.get('content', '')}" for item in recent)
 
+
+def _format_full_history(history: list[dict]) -> str:
+    """Render full history lines for summarization."""
+    if not history:
+        return ""
+    return "\n".join(f"{item.get('role', 'unknown')}: {item.get('content', '')}" for item in history)
+
+
+def _last_user_message(history: list[dict]) -> str:
+    """Return the most recent user message, if any."""
+    for item in reversed(history or []):
+        if item.get("role") == "user":
+            content = (item.get("content") or "").strip()
+            if content:
+                return content
+    return ""
+
+
+def _derive_escalation_categories(state: State) -> list[str]:
+    """Normalize escalation reasons into the 7-category set."""
+    reasons = set(state.get("escalation_reason") or [])
+    categories: list[str] = []
+
+    if "user_requested_human" in reasons:
+        categories.append("user_requested_human")
+    if "negative_sentiment" in reasons:
+        categories.append("negative_sentiment")
+    if "billing_high_risk" in reasons or "billing_sensitive" in reasons:
+        categories.append("billing_high_risk")
+    if "sales_presales_sensitive" in reasons:
+        categories.append("sales_presales_sensitive")
+    if "security_sensitive" in reasons:
+        categories.append("security_sensitive")
+    if "routing_uncertain" in reasons or "low_confidence_ticket_type" in reasons:
+        categories.append("low_confidence_ticket_type")
+    if "negative_feedback" in reasons:
+        categories.append("user_confirmed_escalation")
+
+    if not categories and state.get("escalated"):
+        categories.append("unknown")
+
+    return categories
+
+
+def _fallback_ticket_summary(history: list[dict]) -> str:
+    last_user = _last_user_message(history)
+    if last_user:
+        return f"User issue: {last_user}. Ticket escalated to a human agent."
+    return "Ticket escalated to a human agent."
+
+
+def _generate_ticket_summary(state: State, categories: list[str]) -> tuple[str, list[str]]:
+    """Generate a concise, comprehensive summary for escalated tickets."""
+    history = list(state.get("history") or [])
+    history_text = _format_full_history(history)
+    ticket_type = state.get("ticket_type") or "unknown"
+    category_text = ", ".join(categories) if categories else "unknown"
+
+    if not history_text:
+        return "Ticket escalated to a human agent.", ["ticket_summary -> empty history"]
+
+    system_prompt = (
+        "You are a support ticket summarizer. Write a strict, concise, and comprehensive "
+        "summary of the full conversation in 1-3 sentences. Include the core issue, key "
+        "context, and the final outcome (escalated to a human agent). Use the same language "
+        "as the user's messages. Do not add greetings, apologies, or speculation."
+    )
+    user_prompt = (
+        f"Ticket type: {ticket_type}\n"
+        f"Escalation categories: {category_text}\n"
+        "Conversation:\n"
+        f"{history_text}\n\n"
+        "Summary:"
+    )
+
+    try:
+        summary = llm_chat(system_prompt, user_prompt, max_tokens=180).strip()
+    except Exception as exc:
+        fallback = _fallback_ticket_summary(history)
+        return fallback, [f"ticket_summary -> fallback (llm error: {exc})"]
+
+    if not summary:
+        fallback = _fallback_ticket_summary(history)
+        return fallback, ["ticket_summary -> fallback (empty)"]
+
+    return summary, ["ticket_summary -> generated"]
+
+
+def _finalize_escalation_metadata(state: State) -> dict:
+    """Ensure escalated tickets carry ragcards, summary, and normalized reasons."""
+    events = list(state.get("events") or [])
+    ragcards = list(state.get("ragcards") or [])
+
+    categories = state.get("escalation_categories") or _derive_escalation_categories(state)
+    if categories:
+        events = _append_event({"events": events}, f"escalation_categories -> {', '.join(categories)}")
+    else:
+        events = _append_event({"events": events}, "escalation_categories -> none")
+
+    summary = state.get("ticket_summary") or ""
+    if not summary:
+        summary, summary_events = _generate_ticket_summary(state, categories)
+        for entry in summary_events:
+            events = _append_event({"events": events}, entry)
+
+    return {
+        "ticket_summary": summary,
+        "escalation_categories": categories,
+        "ragcards": ragcards,
+        "events": events,
+    }
 
 def _has_heading(text: str) -> bool:
     """Detect if the text starts with a heading/label we do not want."""
@@ -485,27 +598,18 @@ def check_followup(state: State) -> dict:
     restart_to_validate = False
     turn = int(state.get("turn") or 1)
 
-    lowered = query.lower()
-    yes_patterns = ["yes", "y", "yeah", "yep", "sure", "ok", "okay", "affirmative", "resolved"]
-    no_patterns = [
-        "no",
-        "nope",
-        "nah",
-        "not yet",
-        "not really",
-        "still not",
-        "still broken",
-        "not fixed",
-        "no it is not",
-        "it is not fixed",
-    ]
-
-    def _matches(patterns: list[str]) -> bool:
-        return any(lowered == p or lowered.startswith(p + " ") for p in patterns)
+    def _normalize_yes_no(text: str) -> str:
+        normalized = text.strip().lower()
+        if normalized == "yes":
+            return "yes"
+        if normalized == "no":
+            return "no"
+        return ""
 
     # Pending resolution confirmation
     if pending == "resolution":
-        if _matches(yes_patterns):
+        choice = _normalize_yes_no(query)
+        if choice == "yes":
             response = "Great to hear it's resolved. We'll close this ticket."
             history.append({"role": "user", "content": query})
             history.append({"role": "assistant", "content": response})
@@ -521,7 +625,7 @@ def check_followup(state: State) -> dict:
                 "pending_question": "",
                 "resolution_no_count": 0,
             }
-        if _matches(no_patterns):
+        if choice == "no":
             history.append({"role": "user", "content": query})
             resolution_no_count += 1
             # From second round onward, and after accumulating at least 2 "No" answers to this resolution question, ask about escalation.
@@ -554,29 +658,59 @@ def check_followup(state: State) -> dict:
                 "pending_question": "",
                 "resolution_no_count": resolution_no_count,
             }
+        response = "Please choose Yes or No using the buttons above."
+        history.append({"role": "user", "content": query})
+        history.append({"role": "assistant", "content": response})
+        events = _append_event({"events": events}, "check_followup -> invalid yes/no input (resolution)")
+        return {
+            "input_continue": False,
+            "response": response,
+            "status": "REPLIED",
+            "final_action": "AUTO_REPLY",
+            "escalated": False,
+            "events": events,
+            "history": history,
+            "pending_question": "resolution",
+            "resolution_no_count": resolution_no_count,
+        }
 
     # Pending escalation decision
     if pending == "escalation":
-        if _matches(yes_patterns):
+        choice = _normalize_yes_no(query)
+        if choice == "yes":
             response = ESCALATION_REPLY
             history.append({"role": "user", "content": query})
             history.append({"role": "assistant", "content": response})
             events = _append_event({"events": events}, "check_followup -> user requested escalation")
             reasons = _append_reason(state, "negative_feedback")
+            finalize_state = dict(state)
+            finalize_state.update(
+                {
+                    "history": history,
+                    "events": events,
+                    "escalation_reason": reasons,
+                    "escalated": True,
+                    "status": "ESCALATED",
+                }
+            )
+            metadata = _finalize_escalation_metadata(finalize_state)
             return {
                 "input_continue": False,
                 "response": response,
                 "status": "ESCALATED",
                 "final_action": "ESCALATE",
                 "escalated": True,
-                "events": events,
+                "events": metadata["events"],
                 "history": history,
                 "sentiment": "Negative",
                 "escalation_reason": reasons,
+                "ticket_summary": metadata["ticket_summary"],
+                "escalation_categories": metadata["escalation_categories"],
+                "ragcards": metadata["ragcards"],
                 "pending_question": "",
                 "resolution_no_count": resolution_no_count,
             }
-        if _matches(no_patterns):
+        if choice == "no":
             response = "Could you describe your issue in more detail so we can better assist you?"
             events = _append_event({"events": events}, "check_followup -> user declined escalation")
             history.append({"role": "user", "content": query})
@@ -592,6 +726,21 @@ def check_followup(state: State) -> dict:
                 "pending_question": "",
                 "resolution_no_count": resolution_no_count,
             }
+        response = "Please choose Yes or No using the buttons above."
+        history.append({"role": "user", "content": query})
+        history.append({"role": "assistant", "content": response})
+        events = _append_event({"events": events}, "check_followup -> invalid yes/no input (escalation)")
+        return {
+            "input_continue": False,
+            "response": response,
+            "status": "REPLIED",
+            "final_action": "AUTO_REPLY",
+            "escalated": False,
+            "events": events,
+            "history": history,
+            "pending_question": "escalation",
+            "resolution_no_count": resolution_no_count,
+        }
 
     events = _append_event({"events": events}, "check_followup -> continue")
     return {
@@ -1220,13 +1369,26 @@ def escalate(state: State) -> dict:
     response = ESCALATION_REPLY
     history = list(state.get("history") or [])
     history.append({"role": "assistant", "content": response})
+    finalize_state = dict(state)
+    finalize_state.update(
+        {
+            "history": history,
+            "events": events,
+            "escalated": True,
+            "status": "ESCALATED",
+        }
+    )
+    metadata = _finalize_escalation_metadata(finalize_state)
     return {
         "response": response,
         "escalated": True,
         "status": "ESCALATED",
         "final_action": "ESCALATE",
-        "events": events,
+        "events": metadata["events"],
         "history": history,
+        "ticket_summary": metadata["ticket_summary"],
+        "escalation_categories": metadata["escalation_categories"],
+        "ragcards": metadata["ragcards"],
         "pending_question": "",
         "resolution_no_count": 0,
     }
