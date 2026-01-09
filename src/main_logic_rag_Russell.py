@@ -919,7 +919,16 @@ def retrieve_rag_context(state: State) -> dict:
 
     # 关键：初始化兜底（避免 name 'ragembeddings' is not defined）
     if "ragembeddings" not in globals() or ragembeddings is None:
-        events.append("retrieve_rag_context - error ragembeddings_not_initialized")
+      try:
+        events.append("retrieve_rag_context - init ragembeddings")
+        globals()["ragembeddings"] = AzureOpenAIEmbeddings(
+            model=AZUREOPENAIEMBED_DEPLOYMENT,   # 按你真实变量名改一下
+            azure_endpoint=AZUREOPENAI_ENDPOINT,
+            api_key=AZUREOPENAI_API_KEY,
+            openai_api_version=AZUREOPENAI_API_VERSION,
+        )
+    except Exception as exc:
+        events.append(f"retrieve_rag_context - error init_ragembeddings_failed: {exc}")
         return {"rag_context": "", "ragcards": [], "events": events}
 
     if "qdrantclient" not in globals() or qdrantclient is None:
