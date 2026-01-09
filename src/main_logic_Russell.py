@@ -5,7 +5,6 @@ import os
 import re
 import string
 from datetime import datetime
-import pandas as pd
 from groq import Groq, APIStatusError
 
 
@@ -64,7 +63,6 @@ ESCALATION_REPLY = (
     "We will resolve your issue as quickly as possible. Our helpful and professional staff "
     "will contact you shortly. Thank you for your patience!"
 )
-ESCALATION_LOG_FILENAME = "escalation_handover.xlsx"
 # CLOSING_PROMPT removed from responses per latest requirements
 
 
@@ -216,98 +214,6 @@ def _ensure_created_at(state: State) -> str:
     if created_at:
         return created_at
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-def _conversation_to_text(history: list[dict]) -> str:
-    """Serialize full conversation history for logging."""
-    if not history:
-        return ""
-    lines = []
-    for item in history:
-        role = item.get("role", "unknown")
-        content = item.get("content", "")
-        lines.append(f"{role}: {content}")
-    return "\n".join(lines)
-
-def _summarize_for_handover(state: State) -> str:
-    """Generate a concise handover summary for human agents."""
-    history_text = _conversation_to_text(state.get("history") or [])
-    if not history_text:
-        query = state.get("query") or ""
-        history_text = f"user: {query}" if query else ""
-    system_prompt = (
-        "You are an Escalation Manager Agent. Summarize the ticket for human handover. "
-        "Return 2-3 concise sentences in plain text, with no headings or bullet points."
-    )
-    user_prompt = (
-        f"Ticket type: {state.get('ticket_type') or 'Unknown'}\n"
-        f"Conversation:\n{history_text}"
-    )
-    try:
-        summary = llm_chat(system_prompt, user_prompt, max_tokens=120).strip()
-        return summary or "Summary unavailable."
-    except Exception:
-        return "Summary unavailable due to LLM error."
-
-def _get_escalation_log_path() -> str:
-    """Return the absolute path for the escalation handover log."""
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    root_dir = os.path.dirname(base_dir)
-    return os.path.join(root_dir, ESCALATION_LOG_FILENAME)
-
-def _log_escalation(state: State) -> list[str]:
-    """Append an escalation handover row to the Excel log."""
-    events = list(state.get("events") or [])
-    try:
-        created_at = state.get("created_at") or _ensure_created_at(state)
-        try:
-            created_dt = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            created_dt = datetime.now()
-        date_id = created_dt.strftime("%Y-%m-%d")
-        time_id = created_dt.strftime("%H:%M:%S")
-        ticket_type = state.get("ticket_type") or "Unknown"
-        conversation = _conversation_to_text(state.get("history") or [])
-        summary = _summarize_for_handover(state)
-
-        row = {
-            "Date ID": date_id,
-            "Time ID": time_id,
-            "Ticket Type": ticket_type,
-            "Conversation": conversation,
-            "Summary": summary,
-        }
-        path = _get_escalation_log_path()
-        if os.path.exists(path):
-            try:
-                existing = pd.read_excel(path)
-            except Exception:
-                existing = pd.DataFrame()
-        else:
-            existing = pd.DataFrame()
-        updated = pd.concat([existing, pd.DataFrame([row])], ignore_index=True)
-        try:
-            updated.to_excel(path, index=False)
-            events.append(f"escalation_log -> saved ({os.path.basename(path)})")
-        except Exception as exc:
-            csv_path = os.path.splitext(path)[0] + ".csv"
-            try:
-                if os.path.exists(csv_path):
-                    try:
-                        existing_csv = pd.read_csv(csv_path)
-                    except Exception:
-                        existing_csv = pd.DataFrame()
-                    updated_csv = pd.concat([existing_csv, pd.DataFrame([row])], ignore_index=True)
-                else:
-                    updated_csv = pd.concat([existing, pd.DataFrame([row])], ignore_index=True)
-                updated_csv.to_csv(csv_path, index=False)
-                events.append(f"escalation_log -> saved ({os.path.basename(csv_path)})")
-                events.append(f"escalation_log -> excel failed ({exc})")
-            except Exception as csv_exc:
-                events.append(f"escalation_log -> failed ({csv_exc})")
-    except Exception as exc:
-        events.append(f"escalation_log -> failed ({exc})")
-    return events
-
 
 def validate_input(state: State) -> dict:
     """Validate user input length and characters (<=200, ASCII letters/numbers/punctuation/spaces)."""
@@ -623,9 +529,6 @@ def check_followup(state: State) -> dict:
             history.append({"role": "assistant", "content": response})
             events = _append_event({"events": events}, "check_followup -> user requested escalation")
             reasons = _append_reason(state, "negative_feedback")
-            log_state = dict(state)
-            log_state.update({"history": history, "events": events})
-            events = _log_escalation(log_state)
             return {
                 "input_continue": False,
                 "response": response,
@@ -1210,9 +1113,6 @@ def escalate(state: State) -> dict:
     response = ESCALATION_REPLY
     history = list(state.get("history") or [])
     history.append({"role": "assistant", "content": response})
-    log_state = dict(state)
-    log_state.update({"history": history, "events": events})
-    events = _log_escalation(log_state)
     return {
         "response": response,
         "escalated": True,
