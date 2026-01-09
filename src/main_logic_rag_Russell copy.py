@@ -944,7 +944,7 @@ def retrieve_rag_context(state: State) -> dict:
         res = qdrant_client.query_points(
             collection_name=QDRANT_COLLECTION,
             query=vec,
-            limit=2,
+            limit=1,
             with_payload=True,
         )
         hits = res.points if hasattr(res, "points") else res
