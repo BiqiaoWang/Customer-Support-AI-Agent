@@ -58,18 +58,24 @@ class State(TypedDict):
 MODEL = "llama-3.1-8b-instant"
 
 
-# ==== RAG runtime (Qdrant + Azure OpenAI Embeddings) ==== # New add
-QDRANT_URL = os.getenv("QDRANT_URL")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
-QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "supportkbcollection")
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+# --- RAG: Qdrant + Azure Embeddings 全局配置与客户端 ---
+
+# Qdrant 连接配置：指向你刚才建索引的那个 cluster / collection
+QDRANT_URL = "https://935b80de-2d8b-4e02-930b-7c2c068dcb00.us-east4-0.gcp.cloud.qdrant.io:6333"
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+QDRANT_COLLECTION = "support_kb_collection"
+
+# Azure OpenAI Embedding 配置：保证和建索引脚本用的是同一个 deployment
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://student-openai-uc.openai.azure.com/")
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-01")
 AZURE_OPENAI_EMBED_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBED_DEPLOYMENT", "text-embedding-3-small")
 
-qdrantclient = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-ragembeddings = AzureOpenAIEmbeddings(
+# RAG 用的全局客户端（一个进程里复用，避免每次都重新创建）
+qdrant_client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+rag_embeddings = AzureOpenAIEmbeddings(
     model=AZURE_OPENAI_EMBED_DEPLOYMENT,
     azure_endpoint=AZURE_OPENAI_ENDPOINT,
     api_key=AZURE_OPENAI_API_KEY,
@@ -77,7 +83,6 @@ ragembeddings = AzureOpenAIEmbeddings(
 )
 
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 FALLBACK_USER_REPLY = (
     "We've recorded your issue. Please share your phone or email, and a teammate "
