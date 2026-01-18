@@ -1,3 +1,12 @@
+"""
+This script:
+1. Creates a stratified gold-standard dataset (n=500) by ticket type
+2. Applies a VADER lexicon-based sentiment baseline
+3. Performance was evaluated using manually labeled sentiment data
+
+Used as a baseline for comparison with LLM-based classifiers.
+"""
+
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
@@ -15,7 +24,7 @@ N = len(df)
 target_n = 500
 
 gold_list = []
-selected_ids = []   
+selected_ids = []   # 记录选中的 ticket_id，避免后续定位错误
 
 for ttype, group in df.groupby('ticket_type'):
     # Proportion of this ticket type in the full dataset

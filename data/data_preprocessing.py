@@ -62,7 +62,7 @@ def clean_text(text):
 
     text = str(text)
 
-    # 1) Replace real and literal newline symbols
+    # 1) Replace line breaks and newline markers with spaces
     text = text.replace("\n", " ").replace("\r", " ")
     text = text.replace("\\n", " ").replace("\\r", " ")
 
@@ -70,7 +70,7 @@ def clean_text(text):
     text = re.sub(r"<br\s*/?>", " ", text, flags=re.IGNORECASE)
     text = re.sub(r"</?[^>]+>", " ", text)   # Remove other HTML tags such as <p>, <div>
 
-    # 3) Convert to lowercase
+    # 3) Convert text to lowercase
     text = text.lower()
 
     # 4) Keep only alphanumeric characters and limited punctuation
