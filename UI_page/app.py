@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from src.main_logic_rag_Russell import app, GREETING
+from src.main_logic import app, GREETING
 
 # ==== SQLite: 路径 & 工具函数 ====
 DB_PATH = ROOT / "tickets.db"
