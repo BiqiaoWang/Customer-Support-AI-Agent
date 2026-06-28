@@ -10,7 +10,7 @@ As part of this three-person project, I was primarily responsible for:
 - Built a human-annotated gold-standard dataset and VADER baseline for model evaluation.
 - Collected, cleaned, and preprocessed customer support ticket datasets using Python.
 
-**My contributions are organised under the *My_contributions* folder📁 in this repository.**
+#### Note: My contributions are organised under the *My_contributions* folder📁 in this repository.
 
 ## Project Workflow
 <img width="1086" height="1448" alt="Overall workflow" src="https://github.com/user-attachments/assets/e740bd28-ae10-4b1e-866f-37c582bef0b8" />
