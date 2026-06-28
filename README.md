@@ -11,9 +11,9 @@ As part of this three-person project, I was primarily responsible for:
 - Collected, cleaned, and preprocessed customer support ticket datasets using Python.
 
 #### 📌Note: My contributions are organised under the *My_contributions* folder📁 in this repository.
----
-👇 The following sections present my contributions to this project.
----
+
+#### 👇The following sections present my contributions to this project.
+
 ## Project Workflow
 <img width="1086" height="1448" alt="Overall workflow" src="https://github.com/user-attachments/assets/e740bd28-ae10-4b1e-866f-37c582bef0b8" />
 
