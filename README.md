@@ -1,174 +1,112 @@
-# UC-25-Summer-DATA601-AI-Agents
+## Customer Support AI Agent
+This is a three-person summer school project. We developed an AI agent to analyse customer support tickets, categorise customer issues, prioritise requests, and generate tailored responses.
+
+## My Contributions
+As part of this three-person project, I was primarily responsible for:
+
+- Designed an AI-agent escalation workflow for customer support tickets.
+- Implemented and evaluated multiple LLMs for sentiment classification.
+- Built a human-annotated gold-standard dataset and VADER baseline for model evaluation.
+- Collected, cleaned, and preprocessed customer support ticket datasets using Python.
+
+> My contributions are organised under the **My_contributions** folder in this repository.
+
+## Project Workflow
+<img width="1086" height="1448" alt="Overall workflow" src="https://github.com/user-attachments/assets/e740bd28-ae10-4b1e-866f-37c582bef0b8" />
+
+## AI Agent Escalation Workflow
+<img width="1341" height="1173" alt="llm_evaluation workflow" src="https://github.com/user-attachments/assets/abc89641-828e-4213-938e-c6844af2de19" />
+
+## Data Cleaning
+During data cleaning, we found that the ticket descriptions contained non-standard text, including:
+
+- Non-English symbols and special characters
+- HTML tags (e.g., `<br/>`)
+- Line breaks (\n, \\n)
+- Extra spaces
+
+To prepare the data for sentiment classification, the following preprocessing steps were applied:
+
+1. Replaced newline characters with spaces.
+2. Removed HTML tags.
+3. Converted all text to lowercase.
+4. Removed abnormal characters while preserving English letters, numbers, and common punctuation.
+5. Removed unnecessary and duplicate spaces.
+
+> **Note:** Traditional NLP preprocessing (e.g., stop word removal, tokenisation, and lemmatisation) was not applied. The original sentence structure was preserved because LLMs rely on contextual information for sentiment classification.
+
+
+## Sentiment Classification Pipeline
+
+```text
+Customer Support Tickets
+          │
+          ▼
+Data Preprocessing
+          │
+          ▼
+Gold Standard Construction
+(Stratified Sampling + Manual Annotation)
+          │
+          ▼
+VADER Baseline
+          │
+          ▼
+LLM Evaluation
+(Llama 3.1 vs Llama 3.3)
+          │
+          ▼
+Performance Evaluation
+(Precision • Recall • F1-score)
+```
+
+## Model Evaluation Workflow
+The following workflow summarises the data processing and model evaluation process.
+```
+customer_support_tickets.csv
+          │
+          ▼
+01_data_preprocessing.py
+          │
+          ▼
+combined_tickets_clean_text.csv
+          │
+          ▼
+02_gold_standard_sampling_and_vader_baseline.py
+          │
+          ▼
+gold_set_stratified_by_ticket_type.csv
+          │
+          ▼
+Manual annotation
+          │
+          ▼
+gold_set_labeled.csv
+          ├──────────────┐
+          ▼              ▼
+vader_predictions.csv    03_sentiment_classification_and_llm_evaluation.py
+                             │
+                             ▼
+                         outputs/
+                         ├── gold_set_with_llm_labels.csv
+                         ├── vader_predictions.csv
+                         ├── llama31_predictions.csv
+                         ├── llama33_predictions.csv
+                         └── metrics_comparison.txt
+```
+
+## Evaluation Metrics
+The models were evaluated using a manually labelled gold-standard dataset.
+
+Evaluation metrics:
+- Recall (Negative)
+- Precision (Negative)
+- F1-score (Negative)
 
-Hi there 👋  
-Welcome to the **UC-25-Summer-DATA601-AI-Agents** project!
+Since this sentiment classification was developed for a customer support AI-Agent, the objective was to **identify negative tickets** that should be prioritised for escalation to human agents. Therefore, a **binary sentiment classification (Negative vs. Non-Negative)** was adopted, and the evaluation focused on the negative class using Recall, Precision, and F1-score.
 
-This guide explains how every team member should correctly set up the development environment.
+### Results 
+<img width="869" height="181" alt="image" src="https://github.com/user-attachments/assets/d9b760cd-89b4-4a3f-86d3-dea7d2ab76b4" />
 
-## 📁 Project Structure Overview
-
-Below is the directory structure of the **AI-Agents** project, along with explanations for what each folder is used for.
-
-AI-Agents/
-
-data/ ← Raw data, cleaned data, datasets used in experiments
-
-src/ ← Core Python source code for the project
-
-notebooks/ ← Jupyter/Colab notebooks for experiments, explorations, demos
-
-models/ ← Saved models, checkpoints, exported weights
-
-config/ ← Configuration files (prompts, model settings, parameters, paths)
-
-tests/ ← Unit tests and validation scripts
-
-.gitignore ← Git ignore rules
-
-README.md ← Project documentation and setup guide
-
-LICENSE ← Project license
-
-environment.yml ← Conda environment configuration
-
-## 📦 Project Dependencies Overview
-
-Below is a summary of the libraries included in `environment.yml` and what tasks they support.  
-This helps every team member understand which tools are used for each part of the project.
-
-| Task | Required Libraries | Description |
-|------|--------------------|-------------|
-| Data processing & preprocessing | `pandas`, `numpy` | Load datasets, clean data, numerical operations |
-| Classification models & evaluation | `scikit-learn` | Train/test classical ML models (SVM, RandomForest, metrics, splitting) |
-| Text processing | `nltk`, `spacy` | Tokenization, sentence parsing, text cleaning |
-| Multi-agent system / LLM calls | `langchain`, `openai`, `tiktoken` | Build agent workflows, call LLMs, manage prompt tokens |
-| Sentiment / classifier advanced models | `transformers`, `sentencepiece` | Use HuggingFace models (BERT, RoBERTa, T5), encode text |
-| UI frontend demo | `streamlit` | Build interactive demo UI in the browser |
-| API backend service | `fastapi`, `uvicorn` | Build HTTP API endpoints, run backend server |
-
-## 🌱 Environment Setup (Required for All Team Members)
-
-### 1. Install Miniconda
-
-Download Miniconda from the official website (choose **Windows 64-bit** if on Windows).
-
-During installation, make sure to select:
-
-- ✔ **Just Me** (recommended)  
-- ✔ **Add Miniconda3 to my PATH environment variable**  
-- ✔ **Register Miniconda3 as my default Python 3**
-
-After installation, restart your computer once to ensure PATH variables are applied.
-
-### 2. Team Setup — Pre-requirements Checklist
-
-**Windows**
-
-1️⃣ Install Miniconda
-
-Choose Just Me
-
-Check Add Miniconda to PATH
-
-Check Register Miniconda as default Python
-
-2️⃣ Restart the computer
-
-3️⃣ Open a normal CMD (not administrator)
-
-4️⃣ Test conda:
-
-conda --version
-
-If not working:
-
-conda init cmd.exe
-
-Restart CMD.
-
-5️⃣ Open VS Code
-
-Set terminal to cmd.exe:
-
-Ctrl + Shift + P → Terminal: Select Default Profile → Command Prompt
-
-**macOS**
-
-1️⃣ Install Miniconda
-2️⃣ Restart Terminal
-3️⃣ Test:
-
-conda --version
-
-If not working:
-
-conda init zsh
-
-Restart terminal.
-
-### 3. Clone the Project
-
-Open a terminal and run:
-
-git clone https://github.com/UC-25-Summer-DATA601-AI-Agents/UC-25-Summer-DATA601-AI-Agents
-
-📌 IMPORTANT — Do NOT rename the project folder
-
-After cloning, the folder will be created as: UC-25-Summer-DATA601-AI-Agents
-
-⚠️ Do NOT rename this folder.
-
-Keeping the same folder name ensures all team members use the same commands.
-
-📌 Enter the project folder
-
-**Open a terminal (VS Code Terminal or Command Prompt) and run: cd UC-25-Summer-DATA601-AI-Agents**
-
-Make sure you run the command in the location where the folder exists.
-
-###  4. Create and Activate the Conda Environment
-Run:
-conda env create -f environment.yml
-
-conda activate UC-25-Summer-DATA601-AI-Agents
-
-Verify the Python version:
-input: python -V
-
-Expected output:
-Python 3.10.x
-
-(Our environment is locked to Python 3.10 for compatibility.)
-
-### 5. VS Code Setup (Very Important)
-✔ Set the Default Terminal to Command Prompt (cmd.exe)
-
-In VS Code, press:
-Ctrl + Shift + P
-
-Search for:
-Terminal: Select Default Profile
-
-Select:
-Command Prompt
-
-✔ Open a New Terminal and Activate the Environment
-conda activate UC-25-Summer-DATA601-AI-Agents
-
-✔ Select the Project Python Interpreter
-Press: Ctrl + Shift + P
-Choose: Python: Select Interpreter
-Select: UC-25-Summer-DATA601-AI-Agents (conda)
-
-## 🎉 You’re All Set!
-
-You can now run Python scripts, Jupyter notebooks, APIs, and all components of this project within the configured environment.
-
-## 📝 Notes for Team Members
-
-Do NOT change the Python version. It must remain Python 3.10.
-
-Always activate the environment before running code: conda activate UC-25-Summer-DATA601-AI-Agents
-
-If you encounter terminal issues in VS Code, switch back to cmd.exe, not PowerShell.
-
+### Skills
+- Python | Pandas | LLM | Prompt Engineering | Sentiment Classification | Data Preprocessing | Gold-standard Dataset Construction | Model Evaluation
