@@ -1,7 +1,8 @@
-## Customer Support AI Agent
-This is a three-person summer school project. We developed an AI agent to analyse customer support tickets, categorise customer issues, prioritise requests, and generate tailored responses.
+## 🤖Customer Support AI Agent
+This is a three-person summer school project. 
+We developed an AI agent to analyse customer support tickets, categorise customer issues, prioritise requests, and generate tailored responses.
 
-## My Contributions
+## 👩‍💻My Contributions
 As part of this three-person project, I was primarily responsible for:
 
 - Designed an AI-agent escalation workflow for customer support tickets.
@@ -9,13 +10,13 @@ As part of this three-person project, I was primarily responsible for:
 - Built a human-annotated gold-standard dataset and VADER baseline for model evaluation.
 - Collected, cleaned, and preprocessed customer support ticket datasets using Python.
 
-> My contributions are organised under the **My_contributions** folder in this repository.
+**My contributions are organised under the *My_contributions* folder📁 in this repository.**
 
 ## Project Workflow
 <img width="1086" height="1448" alt="Overall workflow" src="https://github.com/user-attachments/assets/e740bd28-ae10-4b1e-866f-37c582bef0b8" />
 
 ## AI Agent Escalation Workflow
-<img width="1341" height="1173" alt="llm_evaluation workflow" src="https://github.com/user-attachments/assets/abc89641-828e-4213-938e-c6844af2de19" />
+<img width="4254" height="4092" alt="AI Agent Escalation Workflow" src="https://github.com/user-attachments/assets/3236f082-25dd-413a-b289-01d089e24071" />
 
 ## Data Cleaning
 During data cleaning, we found that the ticket descriptions contained non-standard text, including:
@@ -110,3 +111,4 @@ Since this sentiment classification was developed for a customer support AI-Agen
 
 ### Skills
 - Python | Pandas | LLM | Prompt Engineering | Sentiment Classification | Data Preprocessing | Gold-standard Dataset Construction | Model Evaluation
+
