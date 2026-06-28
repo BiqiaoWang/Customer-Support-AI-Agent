@@ -2,7 +2,7 @@
 This is a three-person summer school project. 
 We developed an AI agent to analyse customer support tickets, categorise customer issues, prioritise requests, and generate tailored responses.
 
-## 👩‍💻My Contributions
+## 👩‍💻My Contributions (Ava Wang)
 As part of this three-person project, I was primarily responsible for:
 
 - Designed an AI-agent escalation workflow for customer support tickets.
